@@ -1,3 +1,11 @@
+/*
+* Brahm Rifino
+* CS450-400 Bailey - Fall 23'
+* Oregon State Univeristy
+* Assignment 3 - Lighting
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -24,14 +32,14 @@
 
 
 // Grid definitions
-#define XSIDE	50.f			// length of the x side of the grid
+#define XSIDE	100.f			// length of the x side of the grid
 #define X0      (-XSIDE/2.)		// where one side starts
 #define NX		1000			// how many points in x
 #define DX	( XSIDE/(float)NX )	// change in x between the points
 
 #define YGRID	0.f
 
-#define ZSIDE	50.f			// length of the z side of the grid
+#define ZSIDE	100.f			// length of the z side of the grid
 #define Z0      (-ZSIDE/2.)		// where one side starts
 #define NZ		1000			// how many points in z
 #define DZ	( ZSIDE/(float)NZ )	// change in z between the points
@@ -70,7 +78,7 @@ const int ESCAPE = 0x1b;
 
 // initial window size:
 
-const int INIT_WINDOW_SIZE = 600;
+const int INIT_WINDOW_SIZE = 1200;
 
 // size of the 3d box to be drawn:
 
@@ -147,7 +155,8 @@ char * ColorNames[ ] =
 	(char*)"Green",
 	(char*)"Cyan",
 	(char*)"Blue",
-	(char*)"Magenta"
+	(char*)"Magenta",
+	(char*)"White"
 };
 
 // the color definitions:
@@ -161,6 +170,7 @@ const GLfloat Colors[ ][3] =
 	{ 0., 1., 1. },		// cyan
 	{ 0., 0., 1. },		// blue
 	{ 1., 0., 1. },		// magenta
+	{ 1., 1., 1. },		// white
 };
 
 // fog parameters:
@@ -213,10 +223,11 @@ GLuint	DuckyDL;				// List to hold the duck object
 GLuint	CatDL;					// List to hold the cat object
 GLuint	SalmonDL;				// List to hold the salmon object
 GLuint	GridDL;					// List to hold the grid
-GLuint	SphereDL;				// List to hold the sphere/light location
+GLuint	SphereDL;				// List to hold the sphere / light location
 int		NowLight;				// SPOT or Point
 int		LightColor;				// WHITE, RED, GREEN, BLUE, or YELLOW
-
+const float	* SphereColor;		// Pointer to a const float. Used to modify the color of the sphere.
+bool	Frozen;					// Used to freeze the animation
 
 // function prototypes:
 
@@ -269,7 +280,7 @@ Array3( float a, float b, float c )
 // utility to create an array from a multiplier and an array:
 
 float *
-MulArray3( float factor, float array0[ ] )
+MulArray3( float factor, float const array0[ ] )
 {
 	static float array[4];
 
@@ -339,7 +350,6 @@ main( int argc, char *argv[ ] )
 	// (this will never return)
 
 	glutSetWindow( MainWindow );
-	NowLight = SPOT_LIGHT;
 	glutMainLoop( );
 
 	// glutMainLoop( ) never actually returns
@@ -408,23 +418,18 @@ Display( )
 	GLint yb = ( vy - v ) / 2;
 	glViewport( xl, yb,  v, v );
 
-
 	// set the viewing volume:
 	// remember that the Z clipping  values are given as DISTANCES IN FRONT OF THE EYE
 	// USE gluOrtho2D( ) IF YOU ARE DOING 2D !
-
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity( );
-	
 	gluPerspective( 70.f, 1.f,	0.1f, 1000.f );
 
 	// place the objects into the scene:
-
 	glMatrixMode( GL_MODELVIEW );
 	glLoadIdentity( );
 
 	// set the eye position, look-at position, and up-vector:
-
 	gluLookAt( 12.f, 10.f, 12.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
 
 	// rotate the scene:
@@ -449,29 +454,61 @@ Display( )
 
 	float angle = 360.f * Time;									// Angle will change as a function of time
 	float xLight = LIGHT_RADIUS * cos(angle * (F_PI/180.f));
-	float yLight = LIGHT_RADIUS;// +AMPLITUDE * sin(FREQUENCY * (F_2_PI * Time)); // Up and down motion
+	float yLight = LIGHT_RADIUS * (1.5f + sin((F_2_PI * Time))); // Up and down motion
 	float zLight = LIGHT_RADIUS * sin(angle * (F_PI/180.f));
 
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, MulArray3(.3f, WHITE));
+
 	// 3. if we do this, then the light will be wrt to the object at XLIGHT, YLIGHT, ZLIGHT:
+	glLightfv(GL_LIGHT0, GL_POSITION, Array3(xLight, yLight, zLight));
+
 	if (NowLight == SPOT_LIGHT) {
-		glLightfv(GL_LIGHT0, GL_POSITION, Array3(xLight, yLight, zLight));
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
+		glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, Array3(0., -1.f, 0.)); // Point the spot light straight down
+		glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 45.f);
 	}
 	else {
-		glLightfv(GL_LIGHT1, GL_POSITION, Array3(xLight, yLight, zLight));
-		glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 180.f);
-		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT1);
+		glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 180.f); // Point Light
 	}
+
+	// Handles the color of the light and the color of the sphere
+	switch (LightColor) {
+		case WHITE_LIGHT:
+			glLightfv(GL_LIGHT0, GL_DIFFUSE, Colors[6]);
+			glLightfv(GL_LIGHT0, GL_SPECULAR, Colors[6]);
+			SphereColor = Colors[6];
+			break;
+		case RED:
+			glLightfv(GL_LIGHT0, GL_DIFFUSE, Colors[0]);
+			glLightfv(GL_LIGHT0, GL_SPECULAR, Colors[0]);
+			SphereColor = Colors[0];
+			break;
+		case YELLOW:
+			glLightfv(GL_LIGHT0, GL_DIFFUSE, Colors[1]);
+			glLightfv(GL_LIGHT0, GL_SPECULAR, Colors[1]);
+			SphereColor = Colors[1];
+			break;
+		case GREEN:
+			glLightfv(GL_LIGHT0, GL_DIFFUSE, Colors[2]);
+			glLightfv(GL_LIGHT0, GL_SPECULAR, Colors[2]);
+			SphereColor = Colors[2];
+			break;
+		case BLUE:
+			glLightfv(GL_LIGHT0, GL_DIFFUSE, Colors[4]);
+			glLightfv(GL_LIGHT0, GL_SPECULAR, Colors[4]);
+			SphereColor = Colors[4];
+			break;
+		default:
+			fprintf(stderr, "Light color error");
+	}
+
+	// enable lighting:
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
 
 	// specify the shading model:
 	glShadeModel(GL_SMOOTH);
-	// enable lighting:
-	
 
 	// set the fog parameters:
-
 	if( DepthCueOn != 0 )
 	{
 		glFogi( GL_FOG_MODE, FOGMODE );
@@ -486,38 +523,37 @@ Display( )
 		glDisable( GL_FOG );
 	}
 
-
-
 	// since we are using glScalef( ), be sure the normals get unitized:
-
 	glEnable( GL_NORMALIZE );
-
 
 	// Draw the objects
 	glPushMatrix();
+		glDisable(GL_LIGHTING);
 		glTranslatef(xLight, yLight, zLight);
-		glCallList(SphereDL);
+		glColor3f(SphereColor[0], SphereColor[1], SphereColor[2]);
+		glCallList(SphereDL);					// Light "Source" 
+		glEnable(GL_LIGHTING);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(3.f, 1.f, 3.f);
-		glCallList( DuckyDL );
+		glCallList(DuckyDL);					// Duck object
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(-3.f, .5f, -3.f);
 		glRotatef(130, 0., 1.f, 0.);
-		glCallList(CatDL);
+		glCallList(CatDL);						// Cat object
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(-3.f, 1.f, 3.f);
 		glRotatef(45, 0., 1.f, 0.);
-		glCallList(SalmonDL);
+		glCallList(SalmonDL);					// Salmon object
 	glPopMatrix();
 
 	glPushMatrix();
-		glCallList(GridDL);
+		glCallList(GridDL);						// Grid / Floor
 	glPopMatrix();
 
 	// Disable the lighting
@@ -663,7 +699,7 @@ DoMainMenu( int id )
 	glutPostRedisplay( );
 }
 
-// Handles Light type
+// Handles Light type change. Sets value of enum Lights
 void
 DoLightMenu( int id )
 {
@@ -673,7 +709,7 @@ DoLightMenu( int id )
 	glutPostRedisplay( );
 }
 
-// Handles light color
+// Handles light color change. Sets to value of enum Colors
 void
 DoLightColorMenu(int id)
 {
@@ -905,29 +941,31 @@ InitLists( )
 	// Create the sphere which is a placeholder for the spot light
 	SphereDL = glGenLists(1);
 		glNewList(SphereDL, GL_COMPILE);
-		//SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
 		OsuSphere(1.f, 50.f, 50.f);
 	glEndList();
 
 	// Create the duck object
 	DuckyDL = glGenLists( 1 );
 	glNewList( DuckyDL, GL_COMPILE );
-		SetMaterial(0.8f, 0.1f, 0.3f, 30.f); // Duck is set to very "Shiny"
+		SetMaterial(0.3f, 0.1f, 0.8f, 30.f); // Duck is set to very "Shiny"
 		LoadObjFile((char*)"ducky.obj");
 	glEndList();
 
+	// Create the Cat object
 	CatDL = glGenLists(1);
 	glNewList(CatDL, GL_COMPILE);
 		SetMaterial(1.f, 0.f, 1.f, 3.f); // Cat is set to "Dull"
 		LoadObjFile((char*)"catH.obj");
 	glEndList();
 
+	// Create the Salmon object
 	SalmonDL = glGenLists(1);
 	glNewList(SalmonDL, GL_COMPILE);
 		SetMaterial(0.f, 1.f, 0.6f, 15.f); // Salmon is set to very "Shiny"
 		LoadObjFile((char*)"salmon_high.obj");
 	glEndList();
 
+	// Create the grid
 	GridDL = glGenLists(1);
 	glNewList(GridDL, GL_COMPILE);
 		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
@@ -944,10 +982,7 @@ InitLists( )
 		}
 	glEndList();
 
-
-
 	// create the axes:
-
 	AxesList = glGenLists( 1 );
 	glNewList( AxesList, GL_COMPILE );
 		glLineWidth( AXES_WIDTH );
@@ -969,37 +1004,46 @@ Keyboard( unsigned char c, int x, int y )
 	{	
 		case 'w':
 		case 'W':
-			LightColor = WHITE_LIGHT;
+			LightColor = WHITE_LIGHT; // Changes light color to enum value WHITE_LIGHT
 			break;
 
 		case 'r':
 		case 'R':
-			LightColor = RED;
+			LightColor = RED;		// Changes light color to enum value RED
 			break;
 
 		case 'g':
 		case 'G':
-			LightColor = GREEN;
+			LightColor = GREEN;		// Changes light color to enum value GREEN
 			break;
 
 		case 'b':
 		case 'B':
-			LightColor = BLUE;
+			LightColor = BLUE;		// Changes light color to enum value BLUE
 			break;
 
 		case 'y':
 		case 'Y':
-			LightColor = YELLOW;
+			LightColor = YELLOW;	// Changes light color to enum value YELLOW
 			break;
 	
 		case 'p':
 		case 'P':
-			NowLight = POINT_LIGHT;
+			NowLight = POINT_LIGHT;	// Changes light to enum value POINT_LIGHT
 			break;
 
 		case 's':
 		case 'S':
-			NowLight = SPOT_LIGHT;
+			NowLight = SPOT_LIGHT;	// Changes light to enum value SPOT_LIGHT
+			break;
+
+		case 'f':
+		case 'F':
+			Frozen = !Frozen;
+			if (Frozen)
+				glutIdleFunc(NULL);	// Freeze animation
+			else
+				glutIdleFunc(Animate);
 			break;
 
 		case 'q':
@@ -1130,8 +1174,9 @@ Reset( )
 	ShadowsOn = 0;
 	NowColor = YELLOW;
 	Xrot = Yrot = 0.;
-	//NowLight = SPOT_LIGHT;
-	//LightColor = WHITE;
+	NowLight = SPOT_LIGHT;
+	LightColor = WHITE_LIGHT;
+	Frozen = false;
 }
 
 
