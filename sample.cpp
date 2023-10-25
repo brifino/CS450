@@ -101,12 +101,12 @@ const int LEFT   = 4;
 const int MIDDLE = 2;
 const int RIGHT  = 1;
 
-// which projection:
+// which Light:
 
-enum Projections
+enum Lights
 {
-	ORTHO,
-	PERSP
+	POINT_LIGHT,
+	SPOT_LIGHT
 };
 
 // which button:
@@ -136,7 +136,8 @@ enum Colors
 	GREEN,
 	CYAN,
 	BLUE,
-	MAGENTA
+	MAGENTA,
+	WHITE_LIGHT
 };
 
 char * ColorNames[ ] =
@@ -176,7 +177,7 @@ const float	WHITE[ ] = { 1.,1.,1.,1. };
 
 // for animation:
 
-const int MS_PER_CYCLE = 10000;		// 10000 milliseconds = 10 seconds
+const int	MS_PER_CYCLE = 10000;	// 10000 milliseconds = 10 seconds
 const float LIGHT_RADIUS = 10.f;	// Radius of light path
 const float	PATHRADIUS = 5.0f;		// Light path
 const float	OSCILLATE = 45.f;		// Light up and down motion
@@ -213,6 +214,8 @@ GLuint	CatDL;					// List to hold the cat object
 GLuint	SalmonDL;				// List to hold the salmon object
 GLuint	GridDL;					// List to hold the grid
 GLuint	SphereDL;				// List to hold the sphere/light location
+int		NowLight;				// SPOT or Point
+int		LightColor;				// WHITE, RED, GREEN, BLUE, or YELLOW
 
 
 // function prototypes:
@@ -226,7 +229,8 @@ void	DoDepthFightingMenu( int );
 void	DoDepthMenu( int );
 void	DoDebugMenu( int );
 void	DoMainMenu( int );
-void	DoProjectMenu( int );
+void	DoLightMenu( int );		// Handles the light type
+void	DoLightColorMenu(int);	// Handles the light color
 void	DoRasterString( float, float, float, char * );
 void	DoStrokeString( float, float, float, float, char * );
 float	ElapsedSeconds( );
@@ -335,6 +339,7 @@ main( int argc, char *argv[ ] )
 	// (this will never return)
 
 	glutSetWindow( MainWindow );
+	NowLight = SPOT_LIGHT;
 	glutMainLoop( );
 
 	// glutMainLoop( ) never actually returns
@@ -390,7 +395,6 @@ Display( )
 		glDisable( GL_DEPTH_TEST );
 #endif
 
-
 	// specify shading to be flat:
 
 	glShadeModel( GL_FLAT );
@@ -411,10 +415,8 @@ Display( )
 
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity( );
-	if( NowProjection == ORTHO )
-		glOrtho( -2.f, 2.f,     -2.f, 2.f,     0.1f, 1000.f );
-	else
-		gluPerspective( 70.f, 1.f,	0.1f, 1000.f );
+	
+	gluPerspective( 70.f, 1.f,	0.1f, 1000.f );
 
 	// place the objects into the scene:
 
@@ -423,7 +425,7 @@ Display( )
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt( 10.f, 10.f, 10.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
+	gluLookAt( 12.f, 10.f, 12.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
 
 	// rotate the scene:
 
@@ -451,12 +453,22 @@ Display( )
 	float zLight = LIGHT_RADIUS * sin(angle * (F_PI/180.f));
 
 	// 3. if we do this, then the light will be wrt to the object at XLIGHT, YLIGHT, ZLIGHT:
-	glLightfv( GL_LIGHT0, GL_POSITION, Array3(xLight, yLight, zLight) );
+	if (NowLight == SPOT_LIGHT) {
+		glLightfv(GL_LIGHT0, GL_POSITION, Array3(xLight, yLight, zLight));
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT0);
+	}
+	else {
+		glLightfv(GL_LIGHT1, GL_POSITION, Array3(xLight, yLight, zLight));
+		glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 180.f);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_LIGHT1);
+	}
+
 	// specify the shading model:
 	glShadeModel(GL_SMOOTH);
 	// enable lighting:
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
+	
 
 	// set the fog parameters:
 
@@ -651,14 +663,24 @@ DoMainMenu( int id )
 	glutPostRedisplay( );
 }
 
-
+// Handles Light type
 void
-DoProjectMenu( int id )
+DoLightMenu( int id )
 {
-	NowProjection = id;
+	NowLight = id;
 
 	glutSetWindow( MainWindow );
 	glutPostRedisplay( );
+}
+
+// Handles light color
+void
+DoLightColorMenu(int id)
+{
+	LightColor = id;
+
+	glutSetWindow(MainWindow);
+	glutPostRedisplay();
 }
 
 
@@ -747,10 +769,6 @@ InitMenus( )
 	glutAddMenuEntry( "Off",  0 );
 	glutAddMenuEntry( "On",   1 );
 
-	int projmenu = glutCreateMenu( DoProjectMenu );
-	glutAddMenuEntry( "Orthographic",  ORTHO );
-	glutAddMenuEntry( "Perspective",   PERSP );
-
 	int mainmenu = glutCreateMenu( DoMainMenu );
 	glutAddSubMenu(   "Axes",          axesmenu);
 	glutAddSubMenu(   "Axis Colors",   colormenu);
@@ -764,7 +782,6 @@ InitMenus( )
 #endif
 
 	glutAddSubMenu(   "Depth Cue",     depthcuemenu);
-	glutAddSubMenu(   "Projection",    projmenu );
 	glutAddMenuEntry( "Reset",         RESET );
 	glutAddSubMenu(   "Debug",         debugmenu);
 	glutAddMenuEntry( "Quit",          QUIT );
@@ -885,45 +902,46 @@ InitLists( )
 
 	glutSetWindow( MainWindow );
 
-	// create the object:
+	// Create the sphere which is a placeholder for the spot light
 	SphereDL = glGenLists(1);
 		glNewList(SphereDL, GL_COMPILE);
-		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+		//SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
 		OsuSphere(1.f, 50.f, 50.f);
 	glEndList();
 
+	// Create the duck object
 	DuckyDL = glGenLists( 1 );
 	glNewList( DuckyDL, GL_COMPILE );
-		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+		SetMaterial(0.8f, 0.1f, 0.3f, 30.f); // Duck is set to very "Shiny"
 		LoadObjFile((char*)"ducky.obj");
 	glEndList();
 
 	CatDL = glGenLists(1);
 	glNewList(CatDL, GL_COMPILE);
-		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+		SetMaterial(1.f, 0.f, 1.f, 3.f); // Cat is set to "Dull"
 		LoadObjFile((char*)"catH.obj");
 	glEndList();
 
 	SalmonDL = glGenLists(1);
 	glNewList(SalmonDL, GL_COMPILE);
-		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+		SetMaterial(0.f, 1.f, 0.6f, 15.f); // Salmon is set to very "Shiny"
 		LoadObjFile((char*)"salmon_high.obj");
 	glEndList();
 
 	GridDL = glGenLists(1);
 	glNewList(GridDL, GL_COMPILE);
-	SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
-	glNormal3f(0., 1., 0.);
-	for (int i = 0; i < NZ; i++)
-	{
-		glBegin(GL_QUAD_STRIP);
-		for (int j = 0; j < NX; j++)
+		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+		glNormal3f(0., 1., 0.);
+		for (int i = 0; i < NZ; i++)
 		{
-			glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 0));
-			glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 1));
+			glBegin(GL_QUAD_STRIP);
+			for (int j = 0; j < NX; j++)
+			{
+				glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 0));
+				glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 1));
+			}
+			glEnd();
 		}
-		glEnd();
-	}
 	glEndList();
 
 
@@ -948,15 +966,40 @@ Keyboard( unsigned char c, int x, int y )
 		fprintf( stderr, "Keyboard: '%c' (0x%0x)\n", c, c );
 
 	switch( c )
-	{
-		case 'o':
-		case 'O':
-			NowProjection = ORTHO;
+	{	
+		case 'w':
+		case 'W':
+			LightColor = WHITE_LIGHT;
 			break;
 
+		case 'r':
+		case 'R':
+			LightColor = RED;
+			break;
+
+		case 'g':
+		case 'G':
+			LightColor = GREEN;
+			break;
+
+		case 'b':
+		case 'B':
+			LightColor = BLUE;
+			break;
+
+		case 'y':
+		case 'Y':
+			LightColor = YELLOW;
+			break;
+	
 		case 'p':
 		case 'P':
-			NowProjection = PERSP;
+			NowLight = POINT_LIGHT;
+			break;
+
+		case 's':
+		case 'S':
+			NowLight = SPOT_LIGHT;
 			break;
 
 		case 'q':
@@ -1086,8 +1129,9 @@ Reset( )
 	Scale  = 1.0;
 	ShadowsOn = 0;
 	NowColor = YELLOW;
-	NowProjection = PERSP;
 	Xrot = Yrot = 0.;
+	//NowLight = SPOT_LIGHT;
+	//LightColor = WHITE;
 }
 
 
