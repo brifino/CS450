@@ -35,7 +35,7 @@
 #define NX		1000				// how many points in x
 #define DX		( XSIDE/(float)NX )	// change in x between the points
 
-#define YGRID	0.f
+#define YGRID	-.5f
 
 #define ZSIDE	100.f				// length of the z side of the grid
 #define Z0      (-ZSIDE/2.)			// where one side starts
@@ -77,7 +77,7 @@ const int ESCAPE = 0x1b;
 
 // initial window size:
 
-const int INIT_WINDOW_SIZE = 600;
+const int INIT_WINDOW_SIZE = 1200;
 
 // size of the 3d box to be drawn:
 
@@ -185,7 +185,7 @@ const float	WHITE[ ] = { 1.,1.,1.,1. };
 
 // for animation:
 
-const int MS_PER_CYCLE = 10000;		// 10000 milliseconds = 10 seconds
+const int	MS_PER_CYCLE = 20000;	// 10000 milliseconds = 10 seconds
 const float LIGHT_RADIUS = 10.f;	// Radius of light path
 const float	PATHRADIUS = 5.0f;		// Light path
 const float	OSCILLATE = 45.f;		// Light up and down motion
@@ -219,9 +219,7 @@ int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 
 
-GLuint		DuckyDL;				// List to hold the duck object
 GLuint		CatDL;					// List to hold the cat object
-GLuint		SalmonDL;				// List to hold the salmon object
 GLuint		GridDL;					// List to hold the grid
 GLuint		SphereDL;				// List to hold the sphere / light location
 int			NowLight;				// SPOT or Point
@@ -317,7 +315,11 @@ MulArray3(float factor, float a, float b, float c )
 #include "keytime.cpp"
 //#include "glslprogram.cpp"
 
-Keytimes	Xpos1, Ypos1, Zpos1;
+// Keytime instances
+Keytimes	Xpos1, Ypos1, Zpos1;		// Object position
+Keytimes	hue;						// Obeject color
+Keytimes	eyeX, eyeY, eyeZ;			// Eye position
+Keytimes	sunX, sunY, sunZ;			// Light position
 Keytimes	ThetaX, ThetaY, ThetaZ;
 
 // main program:
@@ -409,11 +411,9 @@ Display( )
 
 
 	// specify shading to be flat:
-
 	glShadeModel( GL_FLAT );
 
 	// set the viewport to be a square centered in the window:
-
 	GLsizei vx = glutGet( GLUT_WINDOW_WIDTH );
 	GLsizei vy = glutGet( GLUT_WINDOW_HEIGHT );
 	GLsizei v = vx < vy ? vx : vy;			// minimum dimension
@@ -425,7 +425,6 @@ Display( )
 	// set the viewing volume:
 	// remember that the Z clipping  values are given as DISTANCES IN FRONT OF THE EYE
 	// USE gluOrtho2D( ) IF YOU ARE DOING 2D !
-
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity( );
 	if( NowProjection == ORTHO )
@@ -434,13 +433,16 @@ Display( )
 		gluPerspective( 70.f, 1.f,	0.1f, 1000.f );
 
 	// place the objects into the scene:
-
 	glMatrixMode( GL_MODELVIEW );
 	glLoadIdentity( );
 
-	// set the eye position, look-at position, and up-vector:
+	// turn # msec into the cycle ( 0 - MSEC-1 ):
+	int msec = glutGet(GLUT_ELAPSED_TIME) % MS_PER_CYCLE;
+	// turn that into a time in seconds:
+	float nowTime = (float)msec / 1000.f;
 
-	gluLookAt( 0.f, 0.f, 3.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
+	// set the eye position, look-at position, and up-vector:
+	gluLookAt(eyeX.GetValue(nowTime), 10.f, eyeZ.GetValue(nowTime), 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
 
 	// rotate the scene:
 
@@ -496,11 +498,13 @@ Display( )
 	// since we are using glScalef( ), be sure the normals get unitized:
 	glEnable( GL_NORMALIZE );
 
-	// turn # msec into the cycle ( 0 - MSEC-1 ):
-	int msec = glutGet(GLUT_ELAPSED_TIME) % MS_PER_CYCLE;
 
-	// turn that into a time in seconds:
-	float nowTime = (float)msec / 1000.f;
+
+	// Color Quatity
+	float hsv[3], rgb[3];
+	hsv[1] = hsv[2] = 1.0f;
+	hsv[0] = hue.GetValue(nowTime);
+	HsvRgb(hsv, rgb);
 
 	// Draw the objects
 	glPushMatrix();
@@ -512,10 +516,12 @@ Display( )
 	glPopMatrix();
 
 	glPushMatrix();
-		glTranslatef(Xpos1.GetValue(nowTime), Ypos1.GetValue(nowTime), Zpos1.GetValue(nowTime));
+		glTranslatef(Xpos1.GetValue(nowTime), 0., Zpos1.GetValue(nowTime));
+		SetMaterial(rgb[0], rgb[1], rgb[2], 10.f);
 		glRotatef(0., 1., 0., 0.);
-		glRotatef(0., 0., 1., 0.);
+		glRotatef(ThetaY.GetValue(nowTime), 0., 1., 0.);
 		glRotatef(0., 0., 0., 1.);
+		glScalef(.5f, .5f, .5f);
 		glCallList(CatDL);
 	glPopMatrix();
 
@@ -885,36 +891,125 @@ InitGraphics( )
 
 	// Keytime classes and keyframe values
 	Xpos1.Init();
-	Xpos1.AddTimeValue(0.0, 0.000);
-	Xpos1.AddTimeValue(2.0, 1.500);
-	Xpos1.AddTimeValue(4.0, 3.000);
-	Xpos1.AddTimeValue(6.0, 4.000);
-	Xpos1.AddTimeValue(8.0, 1.500);
-	Xpos1.AddTimeValue(10.0, 0.000);
-	fprintf(stderr, "%d time-value pairs:\n", Xpos1.GetNumKeytimes());
-	Xpos1.PrintTimeValues();
+		Xpos1.AddTimeValue(0.0, 6.000);
+		Xpos1.AddTimeValue(1.6, 4.000);
+		Xpos1.AddTimeValue(3.2, 2.000);
+		Xpos1.AddTimeValue(4.8, 0.000);
+
+		Xpos1.AddTimeValue(6.6, -2.000);
+		Xpos1.AddTimeValue(8.3, -4.000);
+		Xpos1.AddTimeValue(10.0, -6.000);
+		Xpos1.AddTimeValue(11.6, -4.000);
+		Xpos1.AddTimeValue(13.2, -2.000);
+
+		Xpos1.AddTimeValue(15.0, 0.000);
+		Xpos1.AddTimeValue(16.6, 2.000);
+		Xpos1.AddTimeValue(18.3, 4.000);
+		Xpos1.AddTimeValue(20.0, 6.000);
+		//fprintf(stderr, "%d time-value pairs:\n", Xpos1.GetNumKeytimes());
+		//Xpos1.PrintTimeValues();
 
 	Ypos1.Init();
-	Ypos1.AddTimeValue(0.0, 0.000);
-	Ypos1.AddTimeValue(2.0, 1.500);
-	Ypos1.AddTimeValue(4.0, 3.000);
-	Ypos1.AddTimeValue(6.0, 4.000);
-	Ypos1.AddTimeValue(8.0, 1.500);
-	Ypos1.AddTimeValue(10.0, 0.000);
-	fprintf(stderr, "%d time-value pairs:\n", Ypos1.GetNumKeytimes());
-	Ypos1.PrintTimeValues();
+		Ypos1.AddTimeValue(0.0, 0.000);
+		Ypos1.AddTimeValue(2.0, 1.500);
+		Ypos1.AddTimeValue(4.0, 3.000);
+		Ypos1.AddTimeValue(6.0, 4.000);
+		Ypos1.AddTimeValue(8.0, 1.500);
+		Ypos1.AddTimeValue(10.0, 0.000);
+		//fprintf(stderr, "%d time-value pairs:\n", Ypos1.GetNumKeytimes());
+		//Ypos1.PrintTimeValues();
 
 	Zpos1.Init();
-	Zpos1.AddTimeValue(0.0, 0.000);
-	Zpos1.AddTimeValue(2.0, 1.500);
-	Zpos1.AddTimeValue(4.0, 3.000);
-	Zpos1.AddTimeValue(6.0, 4.000);
-	Zpos1.AddTimeValue(8.0, 1.500);
-	Zpos1.AddTimeValue(10.0, 0.000);
-	fprintf(stderr, "%d time-value pairs:\n", Zpos1.GetNumKeytimes());
-	Zpos1.PrintTimeValues();
+		Zpos1.AddTimeValue(0.0, 0.000);
+		Zpos1.AddTimeValue(1.6, 2.000);
+		Zpos1.AddTimeValue(3.2, 4.000);
+		Zpos1.AddTimeValue(4.8, 6.000);
 
+		Zpos1.AddTimeValue(6.6, 4.000);
+		Zpos1.AddTimeValue(8.3, 2.000);
+		Zpos1.AddTimeValue(10.0, 0.000);
+		Zpos1.AddTimeValue(11.6, -2.000);
+		Zpos1.AddTimeValue(13.2, -4.000);
 
+		Zpos1.AddTimeValue(15.0, -6.000);
+		Zpos1.AddTimeValue(16.6, -4.000);
+		Zpos1.AddTimeValue(18.3, -2.000);
+		Zpos1.AddTimeValue(20.0, 0.000);
+		//fprintf(stderr, "%d time-value pairs:\n", Zpos1.GetNumKeytimes());
+		//Zpos1.PrintTimeValues();
+
+		// Keytime classes and keyframe values
+	eyeX.Init();
+		eyeX.AddTimeValue(0.0, -12.0);
+		eyeX.AddTimeValue(1.6, -8.0);
+		eyeX.AddTimeValue(3.2, -4.0);
+		eyeX.AddTimeValue(4.8, 0.0);
+
+		eyeX.AddTimeValue(6.6, 4.0);
+		eyeX.AddTimeValue(8.3, 8.0);
+		eyeX.AddTimeValue(10.0, 12.0);
+		eyeX.AddTimeValue(11.6, 8.0);
+		eyeX.AddTimeValue(13.2, 4.0);
+
+		eyeX.AddTimeValue(15.0, 0.0);
+		eyeX.AddTimeValue(16.6, -4.0);
+		eyeX.AddTimeValue(18.3, -8.0);
+		eyeX.AddTimeValue(20.0, -12.0);
+
+	eyeZ.Init();
+		eyeZ.AddTimeValue(0.0, 0.0);
+		eyeZ.AddTimeValue(1.6, 4.0);
+		eyeZ.AddTimeValue(3.2, 8.0);
+		eyeZ.AddTimeValue(4.8, 12.0);
+
+		eyeZ.AddTimeValue(6.6, 8.0);
+		eyeZ.AddTimeValue(8.3, 4.0);
+		eyeZ.AddTimeValue(10.0, 0.0);
+		eyeZ.AddTimeValue(11.6, -4.0);
+		eyeZ.AddTimeValue(13.2, -8.0);
+
+		eyeZ.AddTimeValue(15.0, -12.0);
+		eyeZ.AddTimeValue(16.6, -8.0);
+		eyeZ.AddTimeValue(18.3, -4.0);
+		eyeZ.AddTimeValue(20.0, 0.0);
+
+	ThetaY.Init();
+		ThetaY.AddTimeValue(0.0, 90.0);
+		ThetaY.AddTimeValue(1.6, 60.0);
+		ThetaY.AddTimeValue(3.2, 30.0);
+		ThetaY.AddTimeValue(4.8, 0.0);
+		ThetaY.AddTimeValue(6.6, -30.0);
+		ThetaY.AddTimeValue(8.3, -60.0);
+		ThetaY.AddTimeValue(10.0, -90.0);
+		ThetaY.AddTimeValue(11.6, -120.0);
+		ThetaY.AddTimeValue(13.2, -150.0);
+		ThetaY.AddTimeValue(15.0, -180.0);
+		ThetaY.AddTimeValue(16.6, -210.0);
+		ThetaY.AddTimeValue(18.3, -240.0);
+		ThetaY.AddTimeValue(20.0, -270.0);
+
+	hue.Init();
+		hue.AddTimeValue(0.0, 0.0);
+		hue.AddTimeValue(1., 36.);
+		hue.AddTimeValue(2., 72.);
+		hue.AddTimeValue(3., 108.);
+		hue.AddTimeValue(4., 144.);
+		hue.AddTimeValue(5., 180.);
+		hue.AddTimeValue(6., 216.);
+		hue.AddTimeValue(7., 252.);
+		hue.AddTimeValue(8., 288.);
+		hue.AddTimeValue(9., 324.);
+		hue.AddTimeValue(10., 360.);
+		hue.AddTimeValue(11., 324.);
+		hue.AddTimeValue(12., 288.);
+		hue.AddTimeValue(13., 252.);
+		hue.AddTimeValue(14., 216.);
+		hue.AddTimeValue(15., 180.);
+		hue.AddTimeValue(16., 144.);
+		hue.AddTimeValue(17., 108.);
+		hue.AddTimeValue(18., 72.);
+		hue.AddTimeValue(19., 36.);
+		hue.AddTimeValue(20., 0.);
 
 }
 
@@ -939,7 +1034,7 @@ InitLists( )
 	// Create the Cat object
 	CatDL = glGenLists(1);
 		glNewList(CatDL, GL_COMPILE);
-		SetMaterial(.7f, 0.f, .7f, 10.f); 
+		
 		LoadObjFile((char*)"catH.obj");
 	glEndList();
 
