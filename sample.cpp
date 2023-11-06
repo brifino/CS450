@@ -1,3 +1,10 @@
+/*
+* Brahm Rifino
+* CS450-400 Bailey - Fall 23'
+* Oregon State Univeristy
+* Assignment 4 - Keytime Animation
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -21,6 +28,19 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "glut.h"
+
+// Grid definitions
+#define XSIDE	100.f				// length of the x side of the grid
+#define X0      (-XSIDE/2.)			// where one side starts
+#define NX		1000				// how many points in x
+#define DX		( XSIDE/(float)NX )	// change in x between the points
+
+#define YGRID	0.f
+
+#define ZSIDE	100.f				// length of the z side of the grid
+#define Z0      (-ZSIDE/2.)			// where one side starts
+#define NZ		1000				// how many points in z
+#define DZ		( ZSIDE/(float)NZ )	// change in z between the points
 
 
 //	This is a sample OpenGL / GLUT program
@@ -128,12 +148,13 @@ enum Colors
 
 char * ColorNames[ ] =
 {
-	(char *)"Red",
+	(char*)"Red",
 	(char*)"Yellow",
 	(char*)"Green",
 	(char*)"Cyan",
 	(char*)"Blue",
-	(char*)"Magenta"
+	(char*)"Magenta",
+	(char*)"White"
 };
 
 // the color definitions:
@@ -147,6 +168,7 @@ const GLfloat Colors[ ][3] =
 	{ 0., 1., 1. },		// cyan
 	{ 0., 0., 1. },		// blue
 	{ 1., 0., 1. },		// magenta
+	{ 1., 1., 1. },		// white
 };
 
 // fog parameters:
@@ -164,7 +186,11 @@ const float	WHITE[ ] = { 1.,1.,1.,1. };
 // for animation:
 
 const int MS_PER_CYCLE = 10000;		// 10000 milliseconds = 10 seconds
-
+const float LIGHT_RADIUS = 10.f;	// Radius of light path
+const float	PATHRADIUS = 5.0f;		// Light path
+const float	OSCILLATE = 45.f;		// Light up and down motion
+const float FREQUENCY = 3.0f;
+const float AMPLITUDE = .4f;
 
 // what options should we compile-in?
 // in general, you don't need to worry about these
@@ -191,6 +217,17 @@ int		ShadowsOn;				// != 0 means to turn shadows on
 float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
+
+
+GLuint		DuckyDL;				// List to hold the duck object
+GLuint		CatDL;					// List to hold the cat object
+GLuint		SalmonDL;				// List to hold the salmon object
+GLuint		GridDL;					// List to hold the grid
+GLuint		SphereDL;				// List to hold the sphere / light location
+int			NowLight;				// SPOT or Point
+int			LightColor;				// WHITE, RED, GREEN, BLUE, or YELLOW
+const float* SphereColor;		// Pointer to a const float. Used to modify the color of the sphere.
+bool		Frozen;					// Used to freeze the animation
 
 
 // function prototypes:
@@ -243,7 +280,7 @@ Array3( float a, float b, float c )
 // utility to create an array from a multiplier and an array:
 
 float *
-MulArray3( float factor, float array0[ ] )
+MulArray3( float factor, float const array0[ ] )
 {
 	static float array[4];
 
@@ -270,16 +307,18 @@ MulArray3(float factor, float a, float b, float c )
 
 // these are here for when you need them -- just uncomment the ones you need:
 
-//#include "setmaterial.cpp"
-//#include "setlight.cpp"
-//#include "osusphere.cpp"
+#include "setmaterial.cpp"
+#include "setlight.cpp"
+#include "osusphere.cpp"
 //#include "osucone.cpp"
 //#include "osutorus.cpp"
 //#include "bmptotexture.cpp"
-//#include "loadobjfile.cpp"
-//#include "keytime.cpp"
+#include "loadobjfile.cpp"
+#include "keytime.cpp"
 //#include "glslprogram.cpp"
 
+Keytimes	Xpos1, Ypos1, Zpos1;
+Keytimes	ThetaX, ThetaY, ThetaZ;
 
 // main program:
 
@@ -438,14 +477,54 @@ Display( )
 		glCallList( AxesList );
 	}
 
-	// since we are using glScalef( ), be sure the normals get unitized:
+	float angle = 360.f * Time;									// Angle will change as a function of time
+	float xLight = LIGHT_RADIUS * cos(angle * (F_PI / 180.f));
+	float yLight = LIGHT_RADIUS * (1.5f + sin((F_2_PI * Time))); // Up and down motion
+	float zLight = LIGHT_RADIUS * sin(angle * (F_PI / 180.f));
 
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, MulArray3(.3f, WHITE));
+
+	// 3. if we do this, then the light will be wrt to the object at XLIGHT, YLIGHT, ZLIGHT:
+	glLightfv(GL_LIGHT0, GL_POSITION, Array3(xLight, yLight, zLight));
+
+	// enable lighting:
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	// specify the shading model:
+	glShadeModel(GL_SMOOTH);
+
+	// since we are using glScalef( ), be sure the normals get unitized:
 	glEnable( GL_NORMALIZE );
 
+	// turn # msec into the cycle ( 0 - MSEC-1 ):
+	int msec = glutGet(GLUT_ELAPSED_TIME) % MS_PER_CYCLE;
 
-	// draw the box object by calling up its display list:
+	// turn that into a time in seconds:
+	float nowTime = (float)msec / 1000.f;
 
-	glCallList( BoxList );
+	// Draw the objects
+	glPushMatrix();
+		glDisable(GL_LIGHTING);
+		glTranslatef(xLight, yLight, zLight);
+		glColor3f(.5f, .3f, .1f);
+		glCallList(SphereDL);					// Light "Source" 
+		glEnable(GL_LIGHTING);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(Xpos1.GetValue(nowTime), Ypos1.GetValue(nowTime), Zpos1.GetValue(nowTime));
+		glRotatef(0., 1., 0., 0.);
+		glRotatef(0., 0., 1., 0.);
+		glRotatef(0., 0., 0., 1.);
+		glCallList(CatDL);
+	glPopMatrix();
+
+	glPushMatrix();
+		glCallList(GridDL);						// Grid / Floor
+	glPopMatrix();
+
+	// Disable the lighting
+	glDisable(GL_LIGHTING);
 
 #ifdef DEMO_Z_FIGHTING
 	if( DepthFightingOn != 0 )
@@ -804,6 +883,39 @@ InitGraphics( )
 
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
 
+	// Keytime classes and keyframe values
+	Xpos1.Init();
+	Xpos1.AddTimeValue(0.0, 0.000);
+	Xpos1.AddTimeValue(2.0, 1.500);
+	Xpos1.AddTimeValue(4.0, 3.000);
+	Xpos1.AddTimeValue(6.0, 4.000);
+	Xpos1.AddTimeValue(8.0, 1.500);
+	Xpos1.AddTimeValue(10.0, 0.000);
+	fprintf(stderr, "%d time-value pairs:\n", Xpos1.GetNumKeytimes());
+	Xpos1.PrintTimeValues();
+
+	Ypos1.Init();
+	Ypos1.AddTimeValue(0.0, 0.000);
+	Ypos1.AddTimeValue(2.0, 1.500);
+	Ypos1.AddTimeValue(4.0, 3.000);
+	Ypos1.AddTimeValue(6.0, 4.000);
+	Ypos1.AddTimeValue(8.0, 1.500);
+	Ypos1.AddTimeValue(10.0, 0.000);
+	fprintf(stderr, "%d time-value pairs:\n", Ypos1.GetNumKeytimes());
+	Ypos1.PrintTimeValues();
+
+	Zpos1.Init();
+	Zpos1.AddTimeValue(0.0, 0.000);
+	Zpos1.AddTimeValue(2.0, 1.500);
+	Zpos1.AddTimeValue(4.0, 3.000);
+	Zpos1.AddTimeValue(6.0, 4.000);
+	Zpos1.AddTimeValue(8.0, 1.500);
+	Zpos1.AddTimeValue(10.0, 0.000);
+	fprintf(stderr, "%d time-value pairs:\n", Zpos1.GetNumKeytimes());
+	Zpos1.PrintTimeValues();
+
+
+
 }
 
 
@@ -818,63 +930,35 @@ InitLists( )
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting InitLists.\n");
 
-	float dx = BOXSIZE / 2.f;
-	float dy = BOXSIZE / 2.f;
-	float dz = BOXSIZE / 2.f;
-	glutSetWindow( MainWindow );
+	// Create the sphere which is a placeholder for the spot light
+	SphereDL = glGenLists(1);
+		glNewList(SphereDL, GL_COMPILE);
+		OsuSphere(1.f, 50.f, 50.f);
+	glEndList();
 
-	// create the object:
+	// Create the Cat object
+	CatDL = glGenLists(1);
+		glNewList(CatDL, GL_COMPILE);
+		SetMaterial(.7f, 0.f, .7f, 10.f); 
+		LoadObjFile((char*)"catH.obj");
+	glEndList();
 
-	BoxList = glGenLists( 1 );
-	glNewList( BoxList, GL_COMPILE );
-
-		glBegin( GL_QUADS );
-
-			glColor3f( 1., 0., 0. );
-
-				glNormal3f( 1., 0., 0. );
-					glVertex3f(  dx, -dy,  dz );
-					glVertex3f(  dx, -dy, -dz );
-					glVertex3f(  dx,  dy, -dz );
-					glVertex3f(  dx,  dy,  dz );
-
-				glNormal3f(-1., 0., 0.);
-					glVertex3f( -dx, -dy,  dz);
-					glVertex3f( -dx,  dy,  dz );
-					glVertex3f( -dx,  dy, -dz );
-					glVertex3f( -dx, -dy, -dz );
-
-			glColor3f( 0., 1., 0. );
-
-				glNormal3f(0., 1., 0.);
-					glVertex3f( -dx,  dy,  dz );
-					glVertex3f(  dx,  dy,  dz );
-					glVertex3f(  dx,  dy, -dz );
-					glVertex3f( -dx,  dy, -dz );
-
-				glNormal3f(0., -1., 0.);
-					glVertex3f( -dx, -dy,  dz);
-					glVertex3f( -dx, -dy, -dz );
-					glVertex3f(  dx, -dy, -dz );
-					glVertex3f(  dx, -dy,  dz );
-
-			glColor3f(0., 0., 1.);
-
-				glNormal3f(0., 0., 1.);
-					glVertex3f(-dx, -dy, dz);
-					glVertex3f( dx, -dy, dz);
-					glVertex3f( dx,  dy, dz);
-					glVertex3f(-dx,  dy, dz);
-
-				glNormal3f(0., 0., -1.);
-					glVertex3f(-dx, -dy, -dz);
-					glVertex3f(-dx,  dy, -dz);
-					glVertex3f( dx,  dy, -dz);
-					glVertex3f( dx, -dy, -dz);
-
-		glEnd( );
-
-	glEndList( );
+	// Create the grid
+	GridDL = glGenLists(1);
+	glNewList(GridDL, GL_COMPILE);
+		SetMaterial(0.6f, 0.6f, 0.6f, 30.f);
+		glNormal3f(0., 1., 0.);
+		for (int i = 0; i < NZ; i++)
+		{
+			glBegin(GL_QUAD_STRIP);
+			for (int j = 0; j < NX; j++)
+			{
+				glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 0));
+				glVertex3f(X0 + DX * (float)j, YGRID, Z0 + DZ * (float)(i + 1));
+			}
+			glEnd();
+		}
+	glEndList();
 
 
 	// create the axes:
@@ -906,6 +990,15 @@ Keyboard( unsigned char c, int x, int y )
 		case 'p':
 		case 'P':
 			NowProjection = PERSP;
+			break;
+
+		case 'f':
+		case 'F':
+			Frozen = !Frozen;
+			if (Frozen)
+				glutIdleFunc(NULL);	// Freeze animation
+			else
+				glutIdleFunc(Animate);
 			break;
 
 		case 'q':
@@ -1037,6 +1130,7 @@ Reset( )
 	NowColor = YELLOW;
 	NowProjection = PERSP;
 	Xrot = Yrot = 0.;
+	Frozen = false;
 }
 
 
