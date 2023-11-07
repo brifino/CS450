@@ -218,14 +218,15 @@ float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 
-
-GLuint		CatDL;					// List to hold the cat object
-GLuint		GridDL;					// List to hold the grid
-GLuint		SphereDL;				// List to hold the sphere / light location
-int			NowLight;				// SPOT or Point
-int			LightColor;				// WHITE, RED, GREEN, BLUE, or YELLOW
-const float* SphereColor;		// Pointer to a const float. Used to modify the color of the sphere.
-bool		Frozen;					// Used to freeze the animation
+	
+GLuint			CatDL;			// List to hold the cat object
+GLuint			ShipDL;			// List to hold the spaceship
+GLuint			GridDL;			// List to hold the grid
+GLuint			SphereDL;		// List to hold the sphere / light location
+int				NowLight;		// SPOT or Point
+int				LightColor;		// WHITE, RED, GREEN, BLUE, or YELLOW
+const float*	SphereColor;	// Pointer to a const float. Used to modify the color of the sphere.
+bool			Frozen;			// Used to freeze the animation
 
 
 // function prototypes:
@@ -316,11 +317,12 @@ MulArray3(float factor, float a, float b, float c )
 //#include "glslprogram.cpp"
 
 // Keytime instances
-Keytimes	Xpos1, Ypos1, Zpos1;		// Object position
-Keytimes	hue;						// Obeject color
+Keytimes	Xpos1, Ypos1, Zpos1;		// Cat object position
+Keytimes	shipX, shipY, shipZ;		// Ship object position
+Keytimes	hue, hue1;						// Obeject color
 Keytimes	eyeX, eyeY, eyeZ;			// Eye position
-Keytimes	sunX, sunY, sunZ;			// Light position
-Keytimes	ThetaX, ThetaY, ThetaZ;
+Keytimes	lightX, lightY, lightZ;		// Light position
+Keytimes	ThetaX, ThetaY, ThetaY1;
 
 // main program:
 
@@ -409,10 +411,6 @@ Display( )
 		glDisable( GL_DEPTH_TEST );
 #endif
 
-
-	// specify shading to be flat:
-	glShadeModel( GL_FLAT );
-
 	// set the viewport to be a square centered in the window:
 	GLsizei vx = glutGet( GLUT_WINDOW_WIDTH );
 	GLsizei vy = glutGet( GLUT_WINDOW_HEIGHT );
@@ -420,7 +418,6 @@ Display( )
 	GLint xl = ( vx - v ) / 2;
 	GLint yb = ( vy - v ) / 2;
 	glViewport( xl, yb,  v, v );
-
 
 	// set the viewing volume:
 	// remember that the Z clipping  values are given as DISTANCES IN FRONT OF THE EYE
@@ -442,21 +439,19 @@ Display( )
 	float nowTime = (float)msec / 1000.f;
 
 	// set the eye position, look-at position, and up-vector:
-	gluLookAt(eyeX.GetValue(nowTime), 10.f, eyeZ.GetValue(nowTime), 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
+	gluLookAt(eyeX.GetValue(nowTime), 45.f, eyeZ.GetValue(nowTime), 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
+	//gluLookAt(12., 12., 12., 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
 
 	// rotate the scene:
-
 	glRotatef( (GLfloat)Yrot, 0.f, 1.f, 0.f );
 	glRotatef( (GLfloat)Xrot, 1.f, 0.f, 0.f );
 
 	// uniformly scale the scene:
-
 	if( Scale < MINSCALE )
 		Scale = MINSCALE;
 	glScalef( (GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale );
 
 	// set the fog parameters:
-
 	if( DepthCueOn != 0 )
 	{
 		glFogi( GL_FOG_MODE, FOGMODE );
@@ -472,33 +467,35 @@ Display( )
 	}
 
 	// possibly draw the axes:
-
 	if( AxesOn != 0 )
 	{
 		glColor3fv( &Colors[NowColor][0] );
 		glCallList( AxesList );
 	}
 
-	float angle = 360.f * Time;									// Angle will change as a function of time
-	float xLight = LIGHT_RADIUS * cos(angle * (F_PI / 180.f));
-	float yLight = LIGHT_RADIUS * (1.5f + sin((F_2_PI * Time))); // Up and down motion
-	float zLight = LIGHT_RADIUS * sin(angle * (F_PI / 180.f));
-
+	// enable lighting:
+	glEnable(GL_LIGHTING);
+	// Create some ambient lighting
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, MulArray3(.3f, WHITE));
 
 	// 3. if we do this, then the light will be wrt to the object at XLIGHT, YLIGHT, ZLIGHT:
-	glLightfv(GL_LIGHT0, GL_POSITION, Array3(xLight, yLight, zLight));
-
-	// enable lighting:
-	glEnable(GL_LIGHTING);
+	glLightfv(GL_LIGHT0, GL_POSITION, Array3(lightX.GetValue(nowTime), lightY.GetValue(nowTime), lightZ.GetValue(nowTime)));
+	glLightfv(GL_LIGHT0, GL_AMBIENT, MulArray3(0.3f, 0.f, 0.f, 1.f));
+	glLightfv(GL_LIGHT0, GL_SPECULAR, MulArray3(0.4f, 1.f, 1.f, 1.f));
 	glEnable(GL_LIGHT0);
+	
+	// Ships search light
+	glLightfv(GL_LIGHT1, GL_POSITION, Array3(shipX.GetValue(nowTime), shipY.GetValue(nowTime), shipZ.GetValue(nowTime)));
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, Array3(.2, 8., .1));
+	glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, Array3(0, -1.f, 0)); // Point the spot light straight down
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 45.f);
+	glEnable(GL_LIGHT1);
+
 	// specify the shading model:
 	glShadeModel(GL_SMOOTH);
 
 	// since we are using glScalef( ), be sure the normals get unitized:
 	glEnable( GL_NORMALIZE );
-
-
 
 	// Color Quatity
 	float hsv[3], rgb[3];
@@ -506,21 +503,34 @@ Display( )
 	hsv[0] = hue.GetValue(nowTime);
 	HsvRgb(hsv, rgb);
 
+	// Color Quatity
+	float hsv1[3], rgb1[3];
+	hsv1[1] = hsv1[2] = 1.0f;
+	hsv1[0] = hue1.GetValue(nowTime);
+	HsvRgb(hsv1, rgb1);
+
 	// Draw the objects
 	glPushMatrix();
 		glDisable(GL_LIGHTING);
-		glTranslatef(xLight, yLight, zLight);
-		glColor3f(.5f, .3f, .1f);
+		glTranslatef(lightX.GetValue(nowTime), lightY.GetValue(nowTime), lightZ.GetValue(nowTime));
+		glColor3f(0.96f, 0.99f, 0.02f);
 		glCallList(SphereDL);					// Light "Source" 
 		glEnable(GL_LIGHTING);
 	glPopMatrix();
 
 	glPushMatrix();
+		glTranslatef(shipX.GetValue(nowTime), shipY.GetValue(nowTime), shipZ.GetValue(nowTime));
+		SetMaterial(rgb1[0], rgb1[1], rgb1[2], 3.f);
+		glRotatef(ThetaY1.GetValue(nowTime), 0.f, 1.f, 0.f);
+		glRotatef(-90., 1.f, 0.f, 0.f);
+		glScalef(.05f, .05f, .05f);
+		glCallList(ShipDL);
+	glPopMatrix();
+
+	glPushMatrix();
 		glTranslatef(Xpos1.GetValue(nowTime), 0., Zpos1.GetValue(nowTime));
 		SetMaterial(rgb[0], rgb[1], rgb[2], 10.f);
-		glRotatef(0., 1., 0., 0.);
 		glRotatef(ThetaY.GetValue(nowTime), 0., 1., 0.);
-		glRotatef(0., 0., 0., 1.);
 		glScalef(.5f, .5f, .5f);
 		glCallList(CatDL);
 	glPopMatrix();
@@ -890,6 +900,7 @@ InitGraphics( )
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
 
 	// Keytime classes and keyframe values
+	// Cat keytime values
 	Xpos1.Init();
 		Xpos1.AddTimeValue(0.0, 6.000);
 		Xpos1.AddTimeValue(1.6, 4.000);
@@ -938,41 +949,7 @@ InitGraphics( )
 		//fprintf(stderr, "%d time-value pairs:\n", Zpos1.GetNumKeytimes());
 		//Zpos1.PrintTimeValues();
 
-		// Keytime classes and keyframe values
-	eyeX.Init();
-		eyeX.AddTimeValue(0.0, -12.0);
-		eyeX.AddTimeValue(1.6, -8.0);
-		eyeX.AddTimeValue(3.2, -4.0);
-		eyeX.AddTimeValue(4.8, 0.0);
-
-		eyeX.AddTimeValue(6.6, 4.0);
-		eyeX.AddTimeValue(8.3, 8.0);
-		eyeX.AddTimeValue(10.0, 12.0);
-		eyeX.AddTimeValue(11.6, 8.0);
-		eyeX.AddTimeValue(13.2, 4.0);
-
-		eyeX.AddTimeValue(15.0, 0.0);
-		eyeX.AddTimeValue(16.6, -4.0);
-		eyeX.AddTimeValue(18.3, -8.0);
-		eyeX.AddTimeValue(20.0, -12.0);
-
-	eyeZ.Init();
-		eyeZ.AddTimeValue(0.0, 0.0);
-		eyeZ.AddTimeValue(1.6, 4.0);
-		eyeZ.AddTimeValue(3.2, 8.0);
-		eyeZ.AddTimeValue(4.8, 12.0);
-
-		eyeZ.AddTimeValue(6.6, 8.0);
-		eyeZ.AddTimeValue(8.3, 4.0);
-		eyeZ.AddTimeValue(10.0, 0.0);
-		eyeZ.AddTimeValue(11.6, -4.0);
-		eyeZ.AddTimeValue(13.2, -8.0);
-
-		eyeZ.AddTimeValue(15.0, -12.0);
-		eyeZ.AddTimeValue(16.6, -8.0);
-		eyeZ.AddTimeValue(18.3, -4.0);
-		eyeZ.AddTimeValue(20.0, 0.0);
-
+	// Cat transformation keytime values
 	ThetaY.Init();
 		ThetaY.AddTimeValue(0.0, 90.0);
 		ThetaY.AddTimeValue(1.6, 60.0);
@@ -987,7 +964,58 @@ InitGraphics( )
 		ThetaY.AddTimeValue(16.6, -210.0);
 		ThetaY.AddTimeValue(18.3, -240.0);
 		ThetaY.AddTimeValue(20.0, -270.0);
+	
+	// Ship transformation
+	ThetaY1.Init();
+		ThetaY1.AddTimeValue(0.0, 0.0);
+		ThetaY1.AddTimeValue(1.6, -40.0);
+		ThetaY1.AddTimeValue(3.2, -70.0);
+		ThetaY1.AddTimeValue(4.8, -120.0);
+		ThetaY1.AddTimeValue(6.6, -140.0);
+		ThetaY1.AddTimeValue(8.3, -200.0);
+		ThetaY1.AddTimeValue(10.0, -230.0);
+		ThetaY1.AddTimeValue(15.0, -270.0);
+		ThetaY1.AddTimeValue(16.6, -300.0);
+		ThetaY1.AddTimeValue(18.3, -330.0);
+		ThetaY1.AddTimeValue(20.0, -360.0);
 
+
+	// Eye position keytime values
+	eyeX.Init();
+		eyeX.AddTimeValue(0.0, -30.0);
+		eyeX.AddTimeValue(1.6, -20.0);
+		eyeX.AddTimeValue(3.2, -10.0);
+		eyeX.AddTimeValue(4.8, 0.0);
+
+		eyeX.AddTimeValue(6.6, 10.0);
+		eyeX.AddTimeValue(8.3, 20.0);
+		eyeX.AddTimeValue(10.0, 30.0);
+		eyeX.AddTimeValue(11.6, 20.0);
+		eyeX.AddTimeValue(13.2, 10.0);
+
+		eyeX.AddTimeValue(15.0, 0.0);
+		eyeX.AddTimeValue(16.6, -10.0);
+		eyeX.AddTimeValue(18.3, -20.0);
+		eyeX.AddTimeValue(20.0, -30.0);
+
+	eyeZ.Init();
+		eyeZ.AddTimeValue(0.0, 0.0);
+		eyeZ.AddTimeValue(1.6, 10.0);
+		eyeZ.AddTimeValue(3.2, 20.0);
+		eyeZ.AddTimeValue(4.8, 30.0);
+
+		eyeZ.AddTimeValue(6.6, 20.0);
+		eyeZ.AddTimeValue(8.3, 10.0);
+		eyeZ.AddTimeValue(10.0, 0.0);
+		eyeZ.AddTimeValue(11.6, -10.0);
+		eyeZ.AddTimeValue(13.2, -20.0);
+
+		eyeZ.AddTimeValue(15.0, -30.0);
+		eyeZ.AddTimeValue(16.6, -20.0);
+		eyeZ.AddTimeValue(18.3, -10.0);
+		eyeZ.AddTimeValue(20.0, 0.0);
+	
+	// Color Keytime values
 	hue.Init();
 		hue.AddTimeValue(0.0, 0.0);
 		hue.AddTimeValue(1., 36.);
@@ -1011,6 +1039,86 @@ InitGraphics( )
 		hue.AddTimeValue(19., 36.);
 		hue.AddTimeValue(20., 0.);
 
+	hue1.Init();
+		hue1.AddTimeValue(0.0, 100.0);
+		hue1.AddTimeValue(1., 36.);
+		hue1.AddTimeValue(2., 72.);
+		hue1.AddTimeValue(3., 108.);
+		hue1.AddTimeValue(4., 36.);
+		hue1.AddTimeValue(5., 90.);
+		hue1.AddTimeValue(6., 150.);
+		hue1.AddTimeValue(7., 300.);
+		hue1.AddTimeValue(8., 50.);
+		hue1.AddTimeValue(9., 100.);
+		hue1.AddTimeValue(10., 360.);
+		hue1.AddTimeValue(11., 324.);
+		hue1.AddTimeValue(12., 288.);
+		hue1.AddTimeValue(13., 160.);
+		hue1.AddTimeValue(14., 133.);
+		hue1.AddTimeValue(15., 180.);
+		hue1.AddTimeValue(16., 90.);
+		hue1.AddTimeValue(17., 108.);
+		hue1.AddTimeValue(18., 72.);
+		hue1.AddTimeValue(19., 36.);
+		hue1.AddTimeValue(20., 100.);
+
+	// Light keytime values
+	lightX.Init();
+		lightX.AddTimeValue(0.0, 0.0);
+		lightX.AddTimeValue(2.5, 10.0);
+		lightX.AddTimeValue(5.0, 20.0);
+		lightX.AddTimeValue(7.5, 10.0);
+		lightX.AddTimeValue(10.0, 0.0);
+		lightX.AddTimeValue(12.5, -10.0);
+		lightX.AddTimeValue(15.0, -20.0);
+		lightX.AddTimeValue(17.5, -10.0);
+		lightX.AddTimeValue(20.0, 0.0);
+
+	lightY.Init();
+		lightY.AddTimeValue(0.0, 40.0);
+		lightY.AddTimeValue(2.5, 30.0);
+		lightY.AddTimeValue(5.0, 25.0);
+		lightY.AddTimeValue(7.5, 20.0);
+		lightY.AddTimeValue(10.0, 25.0);
+		lightY.AddTimeValue(12.5, 30.0);
+		lightY.AddTimeValue(15.0, 35.0);
+		lightY.AddTimeValue(20.0, 40.0);
+
+	lightZ.Init();
+		lightZ.AddTimeValue(0.0, 4.0);
+		lightZ.AddTimeValue(2.5, 2.0);
+		lightZ.AddTimeValue(5.0, 0.0);
+		lightZ.AddTimeValue(7.5, -2.0);
+		lightZ.AddTimeValue(10.0, -4.0);
+		lightZ.AddTimeValue(12.5, -2.0);
+		lightZ.AddTimeValue(15.0, 0.0);
+		lightZ.AddTimeValue(17.5, 2.0);
+		lightZ.AddTimeValue(20.0, 4.0);
+
+	// Ship keytime values
+	shipX.Init();
+		shipX.AddTimeValue(0.0, 20.0);
+		shipX.AddTimeValue(4.0, 10.0);
+		shipX.AddTimeValue(10, -10.0);
+		shipX.AddTimeValue(12.0, -5.0);
+		shipX.AddTimeValue(16.0, 10.0);
+		shipX.AddTimeValue(20.0, 20.0);
+
+	shipY.Init();
+		shipY.AddTimeValue(0.0, 15.0);
+		shipY.AddTimeValue(4.0, 12.0);
+		shipY.AddTimeValue(8.0, 10.0);
+		shipY.AddTimeValue(12.0, 8.0);
+		shipY.AddTimeValue(14.0, 10.0);
+		shipY.AddTimeValue(20.0, 15.0);
+
+	shipZ.Init();
+		shipZ.AddTimeValue(0.0, -30.0);
+		shipZ.AddTimeValue(4.0, -15.0);
+		shipZ.AddTimeValue(8.0, 10.0);
+		shipZ.AddTimeValue(12.0, -8.0);
+		shipZ.AddTimeValue(16.0, -16.0);
+		shipZ.AddTimeValue(20.0, -30.0);
 }
 
 
@@ -1034,8 +1142,13 @@ InitLists( )
 	// Create the Cat object
 	CatDL = glGenLists(1);
 		glNewList(CatDL, GL_COMPILE);
-		
 		LoadObjFile((char*)"catH.obj");
+	glEndList();
+
+	// Create the space shipt object
+	ShipDL = glGenLists(1);
+		glNewList(ShipDL, GL_COMPILE);
+		LoadObjFile((char*)"spaceship.obj");
 	glEndList();
 
 	// Create the grid
@@ -1057,7 +1170,6 @@ InitLists( )
 
 
 	// create the axes:
-
 	AxesList = glGenLists( 1 );
 	glNewList( AxesList, GL_COMPILE );
 		glLineWidth( AXES_WIDTH );
