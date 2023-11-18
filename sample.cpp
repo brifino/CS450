@@ -197,9 +197,39 @@ int		ShadowsOn;				// != 0 means to turn shadows on
 float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
-GLint	SphereDL, VenusDL,
+GLint	SphereDL, VenusDL,				// Planet display lists
 		EarthDL, MarsDL, JupiterDL,
 		SaturnDL, UranusDL, NeptuenDL;
+GLuint	VTex, ETex, MTex, JTex, STex, UTex, NTex;	// Planet textures
+int		NowPlanet;
+int		width, height;
+
+struct planet
+{
+	char* name;
+	char* file;
+	float                   scale;
+	int                     displayList;
+	char                    key;
+	unsigned int            texObject;
+};
+
+struct planet Planets[] =
+{
+		{ "Venus",      "venus.bmp",     0.95f, 0, 'v', 0 },
+		{ "Earth",      "earth.bmp",     1.00f, 0, 'e', 0 },
+		{ "Mars",       "mars.bmp",      0.53f, 0, 'm', 0 },
+		{ "Jupiter",    "jupiter.bmp",  11.21f, 0, 'j', 0 },
+		{ "Saturn",     "saturn.bmp",    9.45f, 0, 's', 0 },
+		{ "Uranus",     "uranus.bmp",    4.01f, 0, 'u', 0 },
+		{ "Neptune",    "neptune.bmp",   3.88f, 0, 'n', 0 },
+};
+
+GLuint textures[] = {VTex, ETex, MTex, JTex, STex, UTex, NTex};
+
+
+const int NUMPLANETS = sizeof(Planets) / sizeof(struct planet);
+
 
 // function prototypes:
 
@@ -278,12 +308,12 @@ MulArray3(float factor, float a, float b, float c )
 
 // these are here for when you need them -- just uncomment the ones you need:
 
-//#include "setmaterial.cpp"
-//#include "setlight.cpp"
-//#include "osusphere.cpp"
+#include "setmaterial.cpp"
+#include "setlight.cpp"
+#include "osusphere.cpp"
 //#include "osucone.cpp"
 //#include "osutorus.cpp"
-//#include "bmptotexture.cpp"
+#include "bmptotexture.cpp"
 //#include "loadobjfile.cpp"
 //#include "keytime.cpp"
 //#include "glslprogram.cpp"
@@ -450,10 +480,10 @@ Display( )
 
 	glEnable( GL_NORMALIZE );
 
+	glEnable(GL_TEXTURE_2D);
+	glCallList(EarthDL);
+	glDisable(GL_TEXTURE_2D);
 
-	// draw the box object by calling up its display list:
-
-	glCallList( BoxList );
 
 #ifdef DEMO_Z_FIGHTING
 	if( DepthFightingOn != 0 )
@@ -811,7 +841,41 @@ InitGraphics( )
 #endif
 
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
+	
+	for (int i = 0; i < NUMPLANETS; i++) {
+		char* file = (char*)Planets[i].file;
+		unsigned char* texture = BmpToTexture(file, &width, &height);
+		if (texture == NULL)
+			fprintf(stderr, "Cannot open texture '%s'\n", file);
+		else
+			fprintf(stderr, "Opened '%s': width = %d ; height = %d\n", file, width, height);
+		glGenTextures(1, &textures[i]);
+		Planets[i].texObject = textures[i];
+		glBindTexture(GL_TEXTURE_2D, textures[i]);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
+	}
+	/*
+	char* file = (char*)"earth.bmp";
+	unsigned char* texture = BmpToTexture(file, &width, &height);
+	if (texture == NULL)
+		fprintf(stderr, "Cannot open texture '%s'\n", file);
+	else
+		fprintf(stderr, "Opened '%s': width = %d ; height = %d\n", file, width, height);
 
+	glGenTextures(1, &ETex);
+	glBindTexture(GL_TEXTURE_2D, ETex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
+	*/
 }
 
 
@@ -826,17 +890,33 @@ InitLists( )
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting InitLists.\n");
 
-	glutSetWindow( MainWindow );
+	//glutSetWindow( MainWindow );
+
+	SphereDL = glGenLists(1);
+	glNewList(SphereDL, GL_COMPILE);
+	OsuSphere(1., 1, 1);
+	glEndList();
+
+	EarthDL = glGenLists(1);
+		float EScale = Planets[1].scale;
+		glNewList(EarthDL, GL_COMPILE);
+		glBindTexture(GL_TEXTURE_2D, Planets[1].texObject);	// MarsTex must have already been created when this is called
+		glPushMatrix();
+		glScalef(EScale,EScale,EScale);	// scale of mars sphere, from the table
+		glCallList(SphereDL);		// a dl can call another dl that has been previously created
+		glPopMatrix();
+	glEndList();
+
+	MarsDL = glGenLists(1);
+		glNewList(MarsDL, GL_COMPILE);
+		glBindTexture(GL_TEXTURE_2D, Planets[3].texObject);	// MarsTex must have already been created when this is called
+		glPushMatrix();
+		glScalef(0.53f, 0.53f, 0.53f);	// scale of mars sphere, from the table
+		glCallList(SphereDL);		// a dl can call another dl that has been previously created
+		glPopMatrix();
+	glEndList();
 
 
-	// create the axes:
-
-	AxesList = glGenLists( 1 );
-	glNewList( AxesList, GL_COMPILE );
-		glLineWidth( AXES_WIDTH );
-			Axes( 1.5 );
-		glLineWidth( 1. );
-	glEndList( );
 }
 
 
