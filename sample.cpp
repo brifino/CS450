@@ -197,11 +197,11 @@ int		ShadowsOn;				// != 0 means to turn shadows on
 float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
-GLint	SphereDL, VenusDL,				// Planet display lists
-		EarthDL, MarsDL, JupiterDL,
-		SaturnDL, UranusDL, NeptuenDL;
 GLuint	VTex, ETex, MTex, JTex, STex, UTex, NTex;	// Planet textures
-int		NowPlanet;
+GLuint	SphereDL;
+int		NowTex;
+int		NowLight;
+char	NowPlanet;
 int		width, height;
 
 struct planet
@@ -209,7 +209,7 @@ struct planet
 	char* name;
 	char* file;
 	float                   scale;
-	int                     displayList;
+	GLuint                  displayList;
 	char                    key;
 	unsigned int            texObject;
 };
@@ -281,7 +281,7 @@ Array3( float a, float b, float c )
 // utility to create an array from a multiplier and an array:
 
 float *
-MulArray3( float factor, float array0[ ] )
+MulArray3( float factor, float const array0[ ] )
 {
 	static float array[4];
 
@@ -439,7 +439,7 @@ Display( )
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt( 0.f, 0.f, 3.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
+	gluLookAt( 20.f, 5.f, 20.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
 
 	// rotate the scene:
 
@@ -476,13 +476,50 @@ Display( )
 		glCallList( AxesList );
 	}
 
+	float angle = 360.f * Time;									// Angle will change as a function of time
+	float xLight = 20.f * cos(angle * (F_PI / 180.f));
+	float zLight = 20.f * sin(angle * (F_PI / 180.f));
+
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, MulArray3(1.f, WHITE));
+
+	// 3. if we do this, then the light will be wrt to the object at XLIGHT, YLIGHT, ZLIGHT:
+	glLightfv(GL_LIGHT0, GL_POSITION, Array3(xLight, 0, zLight));
+	glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 180.f); // Point Light
+
+	glPushMatrix();
+		glDisable(GL_LIGHTING);
+		glTranslatef(xLight, 0, zLight);
+		glCallList(SphereDL);					// Light "Source" 
+		glEnable(GL_LIGHTING);
+	glPopMatrix();
+
 	// since we are using glScalef( ), be sure the normals get unitized:
 
 	glEnable( GL_NORMALIZE );
 
-	glEnable(GL_TEXTURE_2D);
-	glCallList(EarthDL);
+	if (NowTex == 0)
+		glEnable(GL_TEXTURE_2D);
+	else
+		glDisable(GL_TEXTURE_2D);
+
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	if (NowLight == 0)
+	{
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	}
+	else
+	{
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	}
+	for (int i = 0; i < NUMPLANETS; i++) {
+		if (Planets[i].key == NowPlanet) {
+			glCallList(Planets[i].displayList);
+			break;
+		}
+	}
 	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_LIGHTING);
 
 
 #ifdef DEMO_Z_FIGHTING
@@ -519,7 +556,7 @@ Display( )
 	glDisable( GL_DEPTH_TEST );
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity( );
-	gluOrtho2D( 0.f, 100.f,     0.f, 100.f );
+	gluOrtho2D( 0.f, 100.f, 0.f, 100.f );
 	glMatrixMode( GL_MODELVIEW );
 	glLoadIdentity( );
 	glColor3f( 1.f, 1.f, 1.f );
@@ -859,23 +896,7 @@ InitGraphics( )
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
 	}
-	/*
-	char* file = (char*)"earth.bmp";
-	unsigned char* texture = BmpToTexture(file, &width, &height);
-	if (texture == NULL)
-		fprintf(stderr, "Cannot open texture '%s'\n", file);
-	else
-		fprintf(stderr, "Opened '%s': width = %d ; height = %d\n", file, width, height);
 
-	glGenTextures(1, &ETex);
-	glBindTexture(GL_TEXTURE_2D, ETex);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
-	*/
 }
 
 
@@ -890,32 +911,28 @@ InitLists( )
 	if (DebugOn != 0)
 		fprintf(stderr, "Starting InitLists.\n");
 
-	//glutSetWindow( MainWindow );
+	glutSetWindow( MainWindow );
 
 	SphereDL = glGenLists(1);
 	glNewList(SphereDL, GL_COMPILE);
-	OsuSphere(1., 1, 1);
+	OsuSphere(1., 500, 500);
 	glEndList();
 
-	EarthDL = glGenLists(1);
-		float EScale = Planets[1].scale;
-		glNewList(EarthDL, GL_COMPILE);
-		glBindTexture(GL_TEXTURE_2D, Planets[1].texObject);	// MarsTex must have already been created when this is called
+
+	for (int i = 0; i < NUMPLANETS; i++) {
+		Planets[i].displayList = glGenLists(1);
+		float Scale = Planets[i].scale;
+		glNewList(Planets[i].displayList, GL_COMPILE);
+		fprintf(stderr, "disp list: %d\n", Planets[i].displayList);
+		glBindTexture(GL_TEXTURE_2D, Planets[i].texObject);	// MarsTex must have already been created when this is called
 		glPushMatrix();
-		glScalef(EScale,EScale,EScale);	// scale of mars sphere, from the table
+		glScalef(Scale, Scale, Scale);	// scale of mars sphere, from the table
 		glCallList(SphereDL);		// a dl can call another dl that has been previously created
 		glPopMatrix();
-	glEndList();
+		glEndList();
+	}
 
-	MarsDL = glGenLists(1);
-		glNewList(MarsDL, GL_COMPILE);
-		glBindTexture(GL_TEXTURE_2D, Planets[3].texObject);	// MarsTex must have already been created when this is called
-		glPushMatrix();
-		glScalef(0.53f, 0.53f, 0.53f);	// scale of mars sphere, from the table
-		glCallList(SphereDL);		// a dl can call another dl that has been previously created
-		glPopMatrix();
-	glEndList();
-
+	
 
 }
 
@@ -929,17 +946,57 @@ Keyboard( unsigned char c, int x, int y )
 		fprintf( stderr, "Keyboard: '%c' (0x%0x)\n", c, c );
 
 	switch( c )
-	{
-		case 'o':
-		case 'O':
-			NowProjection = ORTHO;
+	{	
+		case 'v':
+		case 'V':
+			NowPlanet = 'v';
 			break;
-
+		case 'e':
+		case 'E':
+			NowPlanet = 'e';
+			break;
+		case 'm':
+		case 'M':
+			NowPlanet = 'm';
+			break;
+		case 'j':
+		case 'J':
+			NowPlanet = 'j';
+			break;
+		case 's':
+		case 'S':
+			NowPlanet = 's';
+			break;
+		case 'u':
+		case 'U':
+			NowPlanet = 'u';
+			break;
+		case 'n':
+		case 'N':
+			NowPlanet = 'n';
+			break;
+		case 't':
+		case 'T':
+			if (NowTex == 0) {
+				NowTex = 1;
+			}
+			else {
+				NowTex = 0;
+			}
+			break;
+		case 'l':
+		case 'L':
+			if (NowLight == 0) {
+				NowLight = 1;
+			}
+			else {
+				NowLight = 0;
+			}
+			break;
 		case 'p':
 		case 'P':
 			NowProjection = PERSP;
 			break;
-
 		case 'q':
 		case 'Q':
 		case ESCAPE:
@@ -1069,6 +1126,9 @@ Reset( )
 	NowColor = YELLOW;
 	NowProjection = PERSP;
 	Xrot = Yrot = 0.;
+	NowPlanet = 'e';
+	NowLight = 0;
+	NowTex = 0;
 }
 
 
