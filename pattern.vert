@@ -17,10 +17,10 @@ main( )
 {
 	vST = gl_MultiTexCoord0.st;
 	vec4 ECposition = gl_ModelViewMatrix * gl_Vertex;
-	vN = normalize( gl_NormalMatrix * gl_Normal );  // normal vector
-	vL = LightPosition - ECposition.xyz;	    // vector from the point
+	vN = normalize( gl_NormalMatrix * gl_Normal );				// normal vector
+	vL = LightPosition - ECposition.xyz;						// vector from the point
 							// to the light position
-	vE = vec3( 0., 0., 0. ) - ECposition.xyz;       // vector from the point
-							// to the eye position
+	vE = vec3( 0., 0., 0. ) - ECposition.xyz;					// vector from the point
+																// to the eye position
 	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
 }

@@ -35,6 +35,18 @@
 #include "glut.h"
 
 
+// these are here for when you need them -- just uncomment the ones you need:
+
+//#include "setmaterial.cpp"
+//#include "setlight.cpp"
+#include "osusphere.cpp"
+//#include "osucone.cpp"
+//#include "osutorus.cpp"
+//#include "bmptotexture.cpp"
+//#include "loadobjfile.cpp"
+#include "keytime.cpp"
+#include "glslprogram.cpp"
+
 // title of these windows:
 
 const char* WINDOWTITLE = "OpenGL Shader Sample -- Joe Graphics";
@@ -51,7 +63,7 @@ const int ESCAPE = 0x1b;
 
 // initial window size:
 
-const int INIT_WINDOW_SIZE = 600;
+const int INIT_WINDOW_SIZE = 1200;
 
 // multiplication factors for input interaction:
 //  (these are known from previous experience)
@@ -163,6 +175,10 @@ int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 
 int		SphereList;
+float	NowS0, NowT0, NowD;
+
+GLSLProgram Pattern;
+
 
 
 // function prototypes:
@@ -237,20 +253,6 @@ MulArray3(float factor, float a, float b, float c)
 	return array;
 }
 
-// these are here for when you need them -- just uncomment the ones you need:
-
-//#include "setmaterial.cpp"
-//#include "setlight.cpp"
-#include "osusphere.cpp"
-//#include "osucone.cpp"
-//#include "osutorus.cpp"
-//#include "bmptotexture.cpp"
-//#include "loadobjfile.cpp"
-#include "keytime.cpp"
-#include "glslprogram.cpp"
-
-float NowS0, NowT0, NowD;
-GLSLProgram Pattern;
 
 
 // main program:
