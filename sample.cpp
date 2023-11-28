@@ -176,8 +176,12 @@ float	Xrot, Yrot;				// rotation angles in degrees
 
 int		SphereList;
 float	NowS0, NowT0, NowD;
+float	sc, tc, rs, rt;
+int		KeytimePatternOn;
+int		TimePatternOn;
 
 GLSLProgram Pattern;
+Keytimes	Sc, Tc;
 
 
 
@@ -407,6 +411,22 @@ Display()
 	Pattern.SetUniformVariable("uS0", NowS0);
 	Pattern.SetUniformVariable("uT0", NowT0);
 	Pattern.SetUniformVariable("uD", NowD);
+
+	if (KeytimePatternOn)
+	{
+		float sc = Sc.GetValue(Time);
+		float tc = Tc.GetValue(Time);
+	}
+	if (TimePatternOn)
+	{
+		float angle = 360.f * Time;
+		float rs = cos(angle * (F_PI / 180.f));
+		float rt = sin(angle * (F_PI / 180.f));
+	}
+	Pattern.SetUniformVariable("uSc", sc);
+	Pattern.SetUniformVariable("uTc", tc);
+	Pattern.SetUniformVariable("uRs", rs);
+	Pattern.SetUniformVariable("uRt", rt);
 
 	glCallList(SphereList);
 
@@ -718,12 +738,12 @@ InitGraphics()
 	// set the uniform variables that will not change:
 
 	Pattern.Use();
-	Pattern.SetUniformVariable("uKa", 0.1f);
-	Pattern.SetUniformVariable("uKd", 0.5f);
-	Pattern.SetUniformVariable("uKs", 0.4f);
-	Pattern.SetUniformVariable("uColor", 1.f, 0.5f, 0.f);
-	Pattern.SetUniformVariable("uSpecularColor", 1.f, 1.f, 1.f);
-	Pattern.SetUniformVariable("uShininess", 12.f);
+		Pattern.SetUniformVariable("uKa", 0.1f);
+		Pattern.SetUniformVariable("uKd", 0.5f);
+		Pattern.SetUniformVariable("uKs", 0.4f);
+		Pattern.SetUniformVariable("uColor", 1.f, 0.5f, 0.f);
+		Pattern.SetUniformVariable("uSpecularColor", 1.f, 1.f, 1.f);
+		Pattern.SetUniformVariable("uShininess", 12.f);
 	Pattern.UnUse();
 }
 
@@ -787,6 +807,24 @@ Keyboard(unsigned char c, int x, int y)
 	case 'p':
 	case 'P':
 		NowProjection = PERSP;
+		break;
+	case 'k':
+	case 'K':
+		if (KeytimePatternOn == 0) {
+			KeytimePatternOn = 1;
+		}
+		else {
+			KeytimePatternOn = 0;
+		}
+		break;
+	case 't':
+	case 'T':
+		if (TimePatternOn == 0) {
+			TimePatternOn = 1;
+		}
+		else {
+			TimePatternOn = 0;
+		}
 		break;
 
 	case 'q':
@@ -915,6 +953,8 @@ Reset()
 	NowColor = YELLOW;
 	NowProjection = PERSP;
 	Xrot = Yrot = 0.;
+	KeytimePatternOn = 1;
+	TimePatternOn = 1;
 }
 
 
