@@ -175,8 +175,8 @@ int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 
 int		SphereList;
-float	NowS0, NowT0, NowD;
 float	sc, tc, rs, rt;
+float	red, green, blue;
 int		KeytimePatternOn;
 int		TimePatternOn;
 
@@ -394,7 +394,7 @@ Display()
 		glColor3fv(&Colors[NowColor][0]);
 		glCallList(AxesList);
 	}
-
+	
 	// since we are using glScalef( ), be sure the normals get unitized:
 
 	glEnable(GL_NORMALIZE);
@@ -404,29 +404,40 @@ Display()
 	Pattern.Use();
 
 	// set the uniform variables that will change over time:
-
-	NowS0 = 0.5f;
-	NowT0 = 0.5f;
-	NowD = 0.25f;
-	Pattern.SetUniformVariable("uS0", NowS0);
-	Pattern.SetUniformVariable("uT0", NowT0);
-	Pattern.SetUniformVariable("uD", NowD);
-
+	
 	if (KeytimePatternOn)
 	{
-		float sc = Sc.GetValue(Time);
-		float tc = Tc.GetValue(Time);
+		sc = Sc.GetValue(Time);
+		tc = Tc.GetValue(Time);
 	}
+
+	float angle = 180.f * Time;
+
 	if (TimePatternOn)
 	{
-		float angle = 360.f * Time;
-		float rs = cos(angle * (F_PI / 180.f));
-		float rt = sin(angle * (F_PI / 180.f));
+		//float angle = 360.f * Time;
+		//rs = cos((F_PI / 180.f));
+		rs = sin(Time * 90.f);
+		rt = sin((F_PI / 180.f) * Time);
 	}
+
+	
+	float frequency = 0.1; // You can adjust this for different effects
+	float phaseRed = 0;
+	float phaseGreen = 2 * F_PI / 3; // 120 degrees phase shift
+	float phaseBlue = 4 * F_PI / 3; // 240 degrees phase shift
+	// Calculate red, green, and blue using sine and cosine with frequency and phase shift
+	red = 0.5 * cos(frequency * angle + phaseRed) + .5;    // Normalized to [0, 1]
+	green = 0.5 * sin(frequency * angle + phaseGreen) + 0.5; // Normalized to [0, 1]
+	blue = 0.5 * sin(frequency * angle + phaseBlue) + 0.5;
+
 	Pattern.SetUniformVariable("uSc", sc);
 	Pattern.SetUniformVariable("uTc", tc);
 	Pattern.SetUniformVariable("uRs", rs);
 	Pattern.SetUniformVariable("uRt", rt);
+	Pattern.SetUniformVariable("red", red);
+	Pattern.SetUniformVariable("green", green);
+	Pattern.SetUniformVariable("blue", blue);
 
 	glCallList(SphereList);
 
@@ -727,7 +738,6 @@ InitGraphics()
 #endif
 
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
-
 	Pattern.Init();
 	bool valid = Pattern.Create("pattern.vert", "pattern.frag");
 	if (!valid)
@@ -736,15 +746,40 @@ InitGraphics()
 		fprintf(stderr, "Pattern shader created!\n");
 
 	// set the uniform variables that will not change:
-
 	Pattern.Use();
 		Pattern.SetUniformVariable("uKa", 0.1f);
 		Pattern.SetUniformVariable("uKd", 0.5f);
 		Pattern.SetUniformVariable("uKs", 0.4f);
-		Pattern.SetUniformVariable("uColor", 1.f, 0.5f, 0.f);
+		Pattern.SetUniformVariable("uColor", 2.f, 0.2f, 8.f);
 		Pattern.SetUniformVariable("uSpecularColor", 1.f, 1.f, 1.f);
 		Pattern.SetUniformVariable("uShininess", 12.f);
 	Pattern.UnUse();
+
+	// Keytime Values
+	Sc.Init();
+		Sc.AddTimeValue(0.0f, .95f);
+		Sc.AddTimeValue(1.0f, .85f);
+		Sc.AddTimeValue(2.0f, .65f);
+		Sc.AddTimeValue(3.0f, .45f);
+		Sc.AddTimeValue(4.0f, .25f);
+		Sc.AddTimeValue(5.0f, .20f);
+		Sc.AddTimeValue(6.0f, .25f);
+		Sc.AddTimeValue(7.0f, .45f);
+		Sc.AddTimeValue(8.0f, .65f);
+		Sc.AddTimeValue(9.0f, .85f);
+		Sc.AddTimeValue(10.0f, .95f);
+	Tc.Init();
+		Tc.AddTimeValue(0.0f, .80f);
+		Tc.AddTimeValue(1.0f, .70f);
+		Tc.AddTimeValue(2.0f, .60f);
+		Tc.AddTimeValue(3.0f, .50f);
+		Tc.AddTimeValue(4.0f, .40f);
+		Tc.AddTimeValue(5.0f, .20f);
+		Tc.AddTimeValue(6.0f, .25f);
+		Tc.AddTimeValue(7.0f, .30f);
+		Tc.AddTimeValue(8.0f, .40f);
+		Tc.AddTimeValue(9.0f, .50f);
+		Tc.AddTimeValue(10.0f, .60f);
 }
 
 
@@ -812,18 +847,22 @@ Keyboard(unsigned char c, int x, int y)
 	case 'K':
 		if (KeytimePatternOn == 0) {
 			KeytimePatternOn = 1;
+			printf("k = %d\n", KeytimePatternOn);
 		}
 		else {
 			KeytimePatternOn = 0;
+			printf(" = %d\n", KeytimePatternOn);
 		}
 		break;
 	case 't':
 	case 'T':
 		if (TimePatternOn == 0) {
 			TimePatternOn = 1;
+			printf("t = %d\n", TimePatternOn);
 		}
 		else {
 			TimePatternOn = 0;
+			printf("t = %d\n", TimePatternOn);
 		}
 		break;
 
