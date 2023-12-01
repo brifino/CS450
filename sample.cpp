@@ -405,36 +405,33 @@ Display()
 
 	// set the uniform variables that will change over time:
 	
-	if (KeytimePatternOn)
+	if (KeytimePatternOn) // Varrying elipse center
 	{
-		sc = Sc.GetValue(Time);
-		tc = Tc.GetValue(Time);
+		sc = Sc.GetValue(Time * 10);
+		tc = Tc.GetValue(Time * 10);
+		//printf("%f     %f \n", sc, tc);
+		Pattern.SetUniformVariable("uSc", sc);
+		Pattern.SetUniformVariable("uTc", tc);
 	}
 
+	if (TimePatternOn) // Varrying elipse radii
+	{
+		rs = .1 * sin(F_PI * Time) + .1;
+		rt = .1 * sin(F_PI * Time) + .1;
+		//printf("%f     %f \n", rs, rt);
+		Pattern.SetUniformVariable("uRs", rs);
+		Pattern.SetUniformVariable("uRt", rt);
+	}
+
+	// Calculate red, green, and blue values
 	float angle = 180.f * Time;
-
-	if (TimePatternOn)
-	{
-		//float angle = 360.f * Time;
-		//rs = cos((F_PI / 180.f));
-		rs = sin(Time * 90.f);
-		rt = sin((F_PI / 180.f) * Time);
-	}
-
-	
-	float frequency = 0.1; // You can adjust this for different effects
-	float phaseRed = 0;
+	float freq = 0.1;
 	float phaseGreen = 2 * F_PI / 3; // 120 degrees phase shift
 	float phaseBlue = 4 * F_PI / 3; // 240 degrees phase shift
-	// Calculate red, green, and blue using sine and cosine with frequency and phase shift
-	red = 0.5 * cos(frequency * angle + phaseRed) + .5;    // Normalized to [0, 1]
-	green = 0.5 * sin(frequency * angle + phaseGreen) + 0.5; // Normalized to [0, 1]
-	blue = 0.5 * sin(frequency * angle + phaseBlue) + 0.5;
+	red = 0.5 * sin(freq * angle) + .5;
+	green = 0.5 * sin(freq * angle + phaseGreen) + 0.5;
+	blue = 0.5 * sin(freq * angle + phaseBlue) + 0.5;
 
-	Pattern.SetUniformVariable("uSc", sc);
-	Pattern.SetUniformVariable("uTc", tc);
-	Pattern.SetUniformVariable("uRs", rs);
-	Pattern.SetUniformVariable("uRt", rt);
 	Pattern.SetUniformVariable("red", red);
 	Pattern.SetUniformVariable("green", green);
 	Pattern.SetUniformVariable("blue", blue);
@@ -755,21 +752,21 @@ InitGraphics()
 		Pattern.SetUniformVariable("uShininess", 12.f);
 	Pattern.UnUse();
 
-	// Keytime Values
+	// Keytime Value
 	Sc.Init();
-		Sc.AddTimeValue(0.0f, .95f);
-		Sc.AddTimeValue(1.0f, .85f);
-		Sc.AddTimeValue(2.0f, .65f);
-		Sc.AddTimeValue(3.0f, .45f);
-		Sc.AddTimeValue(4.0f, .25f);
-		Sc.AddTimeValue(5.0f, .20f);
-		Sc.AddTimeValue(6.0f, .25f);
-		Sc.AddTimeValue(7.0f, .45f);
-		Sc.AddTimeValue(8.0f, .65f);
-		Sc.AddTimeValue(9.0f, .85f);
-		Sc.AddTimeValue(10.0f, .95f);
+		Sc.AddTimeValue(0.0f, .80f);
+		Sc.AddTimeValue(1.0f, .70f);
+		Sc.AddTimeValue(2.0f, .60f);
+		Sc.AddTimeValue(3.0f, .50f);
+		Sc.AddTimeValue(4.0f, .40f);
+		Sc.AddTimeValue(5.0f, .60f);
+		Sc.AddTimeValue(6.0f, .40f);
+		Sc.AddTimeValue(7.0f, .50f);
+		Sc.AddTimeValue(8.0f, .40f);
+		Sc.AddTimeValue(9.0f, .60f);
+		Sc.AddTimeValue(10.0f, .80f);
 	Tc.Init();
-		Tc.AddTimeValue(0.0f, .80f);
+		Tc.AddTimeValue(0.0f, .60f);
 		Tc.AddTimeValue(1.0f, .70f);
 		Tc.AddTimeValue(2.0f, .60f);
 		Tc.AddTimeValue(3.0f, .50f);
@@ -780,6 +777,7 @@ InitGraphics()
 		Tc.AddTimeValue(8.0f, .40f);
 		Tc.AddTimeValue(9.0f, .50f);
 		Tc.AddTimeValue(10.0f, .60f);
+		
 }
 
 
@@ -851,7 +849,7 @@ Keyboard(unsigned char c, int x, int y)
 		}
 		else {
 			KeytimePatternOn = 0;
-			printf(" = %d\n", KeytimePatternOn);
+			printf("k = %d\n", KeytimePatternOn);
 		}
 		break;
 	case 't':

@@ -33,16 +33,19 @@ main( )
 	vec3 Eye    = normalize(vE);
 	float s = vST.s;
 	float t = vST.t;
+	s = 2.*s;
 
-	float sRadius = pow((s - uSc) / uRs, 2);
-	float tRadius = pow((t - uTc) / uRt, 2);
+
+	float sValue = pow((s - uSc) / uRs, 2);
+	float tValue = pow((t - uTc) / uRt, 2);
 
 	// determine the color using the elipse-boundary equations:
 
 	vec3 myColor = uColor;
-	if( (sRadius + tRadius) <= 1.f)
-	{
-		myColor = vec3( red, green, blue );;
+
+	if( (sValue + tValue) <= 1.0f )
+	{	
+		myColor = vec3( red, green, blue );
 	}
 
 	// apply the per-fragmewnt lighting to myColor:

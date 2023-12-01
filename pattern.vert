@@ -10,7 +10,7 @@ out  vec2  vST;			// (s,t) texture coordinates
 
 // where the light is:
 
-const vec3 LightPosition = vec3(  5., 8., 5. );
+const vec3 LightPosition = vec3(  0., 5., 5. );
 
 void
 main( )
@@ -18,9 +18,7 @@ main( )
 	vST = gl_MultiTexCoord0.st;
 	vec4 ECposition = gl_ModelViewMatrix * gl_Vertex;			// Eye coordinate position
 	vN = normalize( gl_NormalMatrix * gl_Normal );				// normal vector
-	vL = LightPosition - ECposition.xyz;						// vector from the point
-																// to the light position
-	vE = vec3( 0., 0., 0. ) - ECposition.xyz;					// vector from the point
-																// to the eye position
+	vL = LightPosition - ECposition.xyz;						// vector from the point to the light position													
+	vE = vec3( 0., 0.5, 0. ) - ECposition.xyz;					// vector from the point to the eye position										
 	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
 }
