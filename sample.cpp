@@ -185,12 +185,7 @@ const float	WHITE[] = { 1.,1.,1.,1. };
 
 // for animation:
 
-const int	MS_PER_CYCLE = 20000;	// 10000 milliseconds = 10 seconds
-const float LIGHT_RADIUS = 10.f;	// Radius of light path
-const float	PATHRADIUS = 5.0f;		// Light path
-const float	OSCILLATE = 45.f;		// Light up and down motion
-const float FREQUENCY = 3.0f;
-const float AMPLITUDE = .4f;
+const int	MS_PER_CYCLE = 10000;	// 10000 milliseconds = 10 seconds
 
 // what options should we compile-in?
 // in general, you don't need to worry about these
@@ -226,14 +221,14 @@ GLuint			SphereDL;		// List to hold the sphere / light location
 GLuint			CylinderList;
 GLuint			LineList;
 GLuint			ChainList;
+GLuint			GroundTex;
+GLuint			ConeDL;
+GLuint			TrunkDL;
 // Disc golf basket constants
 const float		BAND_RADIUS = 3.f;
 const float		CAGE_RADIUS = 4.f;
 const float		POLE_RADIUS = .25f;
-
 int				NowLight;		// SPOT or Point
-int				LightColor;		// WHITE, RED, GREEN, BLUE, or YELLOW
-const float* SphereColor;		// Pointer to a const float. Used to modify the color of the sphere.
 bool			Frozen;			// Used to freeze the animation
 
 
@@ -317,16 +312,16 @@ MulArray3(float factor, float a, float b, float c)
 #include "setmaterial.cpp"
 #include "setlight.cpp"
 #include "osusphere.cpp"
-//#include "osucone.cpp"
+#include "osucone.cpp"
 //#include "osutorus.cpp"
 //#include "bmptotexture.cpp"
-#include "loadobjfile.cpp"
+//#include "loadobjfile.cpp"
 #include "keytime.cpp"
 //#include "glslprogram.cpp"
 
 // Keytime instances
 Keytimes	Xpos1, Ypos1, Zpos1;		// Cat object position
-Keytimes	shipX, shipY, shipZ;		// Ship object position
+Keytimes	discX, discY, discZ;		// Disc keytimes
 Keytimes	hue, hue1;						// Obeject color
 Keytimes	eyeX, eyeY, eyeZ;			// Eye position
 Keytimes	lightX, lightY, lightZ;		// Light position
@@ -476,6 +471,10 @@ Display()
 		glColor3fv(&Colors[NowColor][0]);
 		glCallList(AxesList);
 	}
+	// turn # msec into the cycle ( 0 - MSEC-1 ):
+	int msec = glutGet(GLUT_ELAPSED_TIME) % MS_PER_CYCLE;
+	// turn that into a time in seconds:
+	float nowTime = (float)msec / 1000.f;
 
 	// enable lighting:
 	glEnable(GL_LIGHTING);
@@ -488,7 +487,6 @@ Display()
 	glLightfv(GL_LIGHT0, GL_SPECULAR, MulArray3(0.4f, 1.f, 1.f, 1.f));
 	glEnable(GL_LIGHT0);
 
-	// Ships search light
 	glLightfv(GL_LIGHT1, GL_POSITION, Array3(.3, .3, .3));
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, Array3(.2, .1, .1));
 	glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, Array3(0, -1.f, 0)); // Point the spot light straight down
@@ -508,14 +506,114 @@ Display()
 
 	// Disc golf disc
 	glPushMatrix();
+		glTranslatef(discX.GetValue(nowTime), discY.GetValue(nowTime), discZ.GetValue(nowTime));
 		glCallList(DiscDL);
 	glPopMatrix();
 
-	// Ground
+	// Tree
 	glPushMatrix();
-		glTranslatef(0.f, -8.f, 0.f);	// Move the horse to its path
+	glTranslatef(0.f, -8.f, 0.f);
 		glCallList(GridDL);						
 	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(20.f, 0.f, 9.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(0.f, 0.f, 20.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(20.f, 0.f, 30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(20.f, 0.f, -30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(-15.f, 0.f, 40.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(40.f, 0.f, 30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(20.f, 0.f, 45.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(10.f, 0.f, -50.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(-10.f, 0.f, 30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(20.f, 0.f, -45.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(10.f, 0.f, 50.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(-10.f, 0.f, -30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(0.f, 0.f, 30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(0.f, 0.f, -45.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(0.f, 0.f, 50.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+	// Tree
+	glPushMatrix();
+	glTranslatef(0.f, 0.f, -30.f);
+	glCallList(ConeDL);
+	glCallList(TrunkDL);
+	glPopMatrix();
+
+
+
 
 	// Disable the lighting
 	glDisable(GL_LIGHTING);
@@ -878,225 +976,27 @@ InitGraphics()
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
 
 	// Keytime classes and keyframe values
-	// Cat keytime values
-	Xpos1.Init();
-	Xpos1.AddTimeValue(0.0, 6.000);
-	Xpos1.AddTimeValue(1.6, 4.000);
-	Xpos1.AddTimeValue(3.2, 2.000);
-	Xpos1.AddTimeValue(4.8, 0.000);
+		// Ship keytime values
+	discX.Init();
+	discX.AddTimeValue(0.0, 20.0);
+	discX.AddTimeValue(2.5, 15.0);
+	discX.AddTimeValue(5, 10.0);
+	discX.AddTimeValue(7.5, 5.0);
+	discX.AddTimeValue(10.0, 0.0);
 
-	Xpos1.AddTimeValue(6.6, -2.000);
-	Xpos1.AddTimeValue(8.3, -4.000);
-	Xpos1.AddTimeValue(10.0, -6.000);
-	Xpos1.AddTimeValue(11.6, -4.000);
-	Xpos1.AddTimeValue(13.2, -2.000);
+	discY.Init();
+	discY.AddTimeValue(0.0, .5);
+	discY.AddTimeValue(2.5, .5);
+	discY.AddTimeValue(5.0, .5);
+	discY.AddTimeValue(7.5, .5);
+	discY.AddTimeValue(10.0, .5);
 
-	Xpos1.AddTimeValue(15.0, 0.000);
-	Xpos1.AddTimeValue(16.6, 2.000);
-	Xpos1.AddTimeValue(18.3, 4.000);
-	Xpos1.AddTimeValue(20.0, 6.000);
-	//fprintf(stderr, "%d time-value pairs:\n", Xpos1.GetNumKeytimes());
-	//Xpos1.PrintTimeValues();
-
-	Ypos1.Init();
-	Ypos1.AddTimeValue(0.0, 0.000);
-	Ypos1.AddTimeValue(2.0, 1.500);
-	Ypos1.AddTimeValue(4.0, 3.000);
-	Ypos1.AddTimeValue(6.0, 4.000);
-	Ypos1.AddTimeValue(8.0, 1.500);
-	Ypos1.AddTimeValue(10.0, 0.000);
-	//fprintf(stderr, "%d time-value pairs:\n", Ypos1.GetNumKeytimes());
-	//Ypos1.PrintTimeValues();
-
-	Zpos1.Init();
-	Zpos1.AddTimeValue(0.0, 0.000);
-	Zpos1.AddTimeValue(1.6, 2.000);
-	Zpos1.AddTimeValue(3.2, 4.000);
-	Zpos1.AddTimeValue(4.8, 6.000);
-
-	Zpos1.AddTimeValue(6.6, 4.000);
-	Zpos1.AddTimeValue(8.3, 2.000);
-	Zpos1.AddTimeValue(10.0, 0.000);
-	Zpos1.AddTimeValue(11.6, -2.000);
-	Zpos1.AddTimeValue(13.2, -4.000);
-
-	Zpos1.AddTimeValue(15.0, -6.000);
-	Zpos1.AddTimeValue(16.6, -4.000);
-	Zpos1.AddTimeValue(18.3, -2.000);
-	Zpos1.AddTimeValue(20.0, 0.000);
-	//fprintf(stderr, "%d time-value pairs:\n", Zpos1.GetNumKeytimes());
-	//Zpos1.PrintTimeValues();
-
-// Cat transformation keytime values
-	ThetaY.Init();
-	ThetaY.AddTimeValue(0.0, 90.0);
-	ThetaY.AddTimeValue(1.6, 60.0);
-	ThetaY.AddTimeValue(3.2, 30.0);
-	ThetaY.AddTimeValue(4.8, 0.0);
-	ThetaY.AddTimeValue(6.6, -30.0);
-	ThetaY.AddTimeValue(8.3, -60.0);
-	ThetaY.AddTimeValue(10.0, -90.0);
-	ThetaY.AddTimeValue(11.6, -120.0);
-	ThetaY.AddTimeValue(13.2, -150.0);
-	ThetaY.AddTimeValue(15.0, -180.0);
-	ThetaY.AddTimeValue(16.6, -210.0);
-	ThetaY.AddTimeValue(18.3, -240.0);
-	ThetaY.AddTimeValue(20.0, -270.0);
-
-	// Ship transformation
-	ThetaY1.Init();
-	ThetaY1.AddTimeValue(0.0, 0.0);
-	ThetaY1.AddTimeValue(1.6, -40.0);
-	ThetaY1.AddTimeValue(3.2, -70.0);
-	ThetaY1.AddTimeValue(4.8, -120.0);
-	ThetaY1.AddTimeValue(6.6, -140.0);
-	ThetaY1.AddTimeValue(8.3, -200.0);
-	ThetaY1.AddTimeValue(10.0, -230.0);
-	ThetaY1.AddTimeValue(15.0, -270.0);
-	ThetaY1.AddTimeValue(16.6, -300.0);
-	ThetaY1.AddTimeValue(18.3, -330.0);
-	ThetaY1.AddTimeValue(20.0, -360.0);
-
-
-	// Eye position keytime values
-	eyeX.Init();
-	eyeX.AddTimeValue(0.0, -30.0);
-	eyeX.AddTimeValue(1.6, -20.0);
-	eyeX.AddTimeValue(3.2, -10.0);
-	eyeX.AddTimeValue(4.8, 0.0);
-
-	eyeX.AddTimeValue(6.6, 10.0);
-	eyeX.AddTimeValue(8.3, 20.0);
-	eyeX.AddTimeValue(10.0, 30.0);
-	eyeX.AddTimeValue(11.6, 20.0);
-	eyeX.AddTimeValue(13.2, 10.0);
-
-	eyeX.AddTimeValue(15.0, 0.0);
-	eyeX.AddTimeValue(16.6, -10.0);
-	eyeX.AddTimeValue(18.3, -20.0);
-	eyeX.AddTimeValue(20.0, -30.0);
-
-	eyeZ.Init();
-	eyeZ.AddTimeValue(0.0, 0.0);
-	eyeZ.AddTimeValue(1.6, 10.0);
-	eyeZ.AddTimeValue(3.2, 20.0);
-	eyeZ.AddTimeValue(4.8, 30.0);
-
-	eyeZ.AddTimeValue(6.6, 20.0);
-	eyeZ.AddTimeValue(8.3, 10.0);
-	eyeZ.AddTimeValue(10.0, 0.0);
-	eyeZ.AddTimeValue(11.6, -10.0);
-	eyeZ.AddTimeValue(13.2, -20.0);
-
-	eyeZ.AddTimeValue(15.0, -30.0);
-	eyeZ.AddTimeValue(16.6, -20.0);
-	eyeZ.AddTimeValue(18.3, -10.0);
-	eyeZ.AddTimeValue(20.0, 0.0);
-
-	// Color Keytime values
-	hue.Init();
-	hue.AddTimeValue(0.0, 0.0);
-	hue.AddTimeValue(1., 36.);
-	hue.AddTimeValue(2., 72.);
-	hue.AddTimeValue(3., 108.);
-	hue.AddTimeValue(4., 144.);
-	hue.AddTimeValue(5., 180.);
-	hue.AddTimeValue(6., 216.);
-	hue.AddTimeValue(7., 252.);
-	hue.AddTimeValue(8., 288.);
-	hue.AddTimeValue(9., 324.);
-	hue.AddTimeValue(10., 360.);
-	hue.AddTimeValue(11., 324.);
-	hue.AddTimeValue(12., 288.);
-	hue.AddTimeValue(13., 252.);
-	hue.AddTimeValue(14., 216.);
-	hue.AddTimeValue(15., 180.);
-	hue.AddTimeValue(16., 144.);
-	hue.AddTimeValue(17., 108.);
-	hue.AddTimeValue(18., 72.);
-	hue.AddTimeValue(19., 36.);
-	hue.AddTimeValue(20., 0.);
-
-	hue1.Init();
-	hue1.AddTimeValue(0.0, 100.0);
-	hue1.AddTimeValue(1., 36.);
-	hue1.AddTimeValue(2., 72.);
-	hue1.AddTimeValue(3., 108.);
-	hue1.AddTimeValue(4., 36.);
-	hue1.AddTimeValue(5., 90.);
-	hue1.AddTimeValue(6., 150.);
-	hue1.AddTimeValue(7., 300.);
-	hue1.AddTimeValue(8., 50.);
-	hue1.AddTimeValue(9., 100.);
-	hue1.AddTimeValue(10., 360.);
-	hue1.AddTimeValue(11., 324.);
-	hue1.AddTimeValue(12., 288.);
-	hue1.AddTimeValue(13., 160.);
-	hue1.AddTimeValue(14., 133.);
-	hue1.AddTimeValue(15., 180.);
-	hue1.AddTimeValue(16., 90.);
-	hue1.AddTimeValue(17., 108.);
-	hue1.AddTimeValue(18., 72.);
-	hue1.AddTimeValue(19., 36.);
-	hue1.AddTimeValue(20., 100.);
-
-	// Light keytime values
-	lightX.Init();
-	lightX.AddTimeValue(0.0, 0.0);
-	lightX.AddTimeValue(2.5, 10.0);
-	lightX.AddTimeValue(5.0, 20.0);
-	lightX.AddTimeValue(7.5, 10.0);
-	lightX.AddTimeValue(10.0, 0.0);
-	lightX.AddTimeValue(12.5, -10.0);
-	lightX.AddTimeValue(15.0, -20.0);
-	lightX.AddTimeValue(17.5, -10.0);
-	lightX.AddTimeValue(20.0, 0.0);
-
-	lightY.Init();
-	lightY.AddTimeValue(0.0, 40.0);
-	lightY.AddTimeValue(2.5, 30.0);
-	lightY.AddTimeValue(5.0, 25.0);
-	lightY.AddTimeValue(7.5, 20.0);
-	lightY.AddTimeValue(10.0, 25.0);
-	lightY.AddTimeValue(12.5, 30.0);
-	lightY.AddTimeValue(15.0, 35.0);
-	lightY.AddTimeValue(20.0, 40.0);
-
-	lightZ.Init();
-	lightZ.AddTimeValue(0.0, 4.0);
-	lightZ.AddTimeValue(2.5, 2.0);
-	lightZ.AddTimeValue(5.0, 0.0);
-	lightZ.AddTimeValue(7.5, -2.0);
-	lightZ.AddTimeValue(10.0, -4.0);
-	lightZ.AddTimeValue(12.5, -2.0);
-	lightZ.AddTimeValue(15.0, 0.0);
-	lightZ.AddTimeValue(17.5, 2.0);
-	lightZ.AddTimeValue(20.0, 4.0);
-
-	// Ship keytime values
-	shipX.Init();
-	shipX.AddTimeValue(0.0, 20.0);
-	shipX.AddTimeValue(4.0, 10.0);
-	shipX.AddTimeValue(10, -10.0);
-	shipX.AddTimeValue(12.0, -5.0);
-	shipX.AddTimeValue(16.0, 10.0);
-	shipX.AddTimeValue(20.0, 20.0);
-
-	shipY.Init();
-	shipY.AddTimeValue(0.0, 15.0);
-	shipY.AddTimeValue(4.0, 12.0);
-	shipY.AddTimeValue(8.0, 10.0);
-	shipY.AddTimeValue(12.0, 8.0);
-	shipY.AddTimeValue(14.0, 10.0);
-	shipY.AddTimeValue(20.0, 15.0);
-
-	shipZ.Init();
-	shipZ.AddTimeValue(0.0, -30.0);
-	shipZ.AddTimeValue(4.0, -15.0);
-	shipZ.AddTimeValue(8.0, 10.0);
-	shipZ.AddTimeValue(12.0, -8.0);
-	shipZ.AddTimeValue(16.0, -16.0);
-	shipZ.AddTimeValue(20.0, -30.0);
+	discZ.Init();
+	discZ.AddTimeValue(0.0, 0.0);
+	discZ.AddTimeValue(2.5, 0.0);
+	discZ.AddTimeValue(5.0, 0.0);
+	discZ.AddTimeValue(7.5, 0.0);
+	discZ.AddTimeValue(10.0, 0.0);
 }
 
 
@@ -1116,9 +1016,32 @@ InitLists()
 	float cageX = BAND_RADIUS / 2;
 
 	// Create the sphere which is a placeholder for the spot light
-	SphereDL = glGenLists(1);
-	glNewList(SphereDL, GL_COMPILE);
-	OsuSphere(1.f, 50.f, 50.f);
+	ConeDL = glGenLists(1);
+		glNewList(ConeDL, GL_COMPILE);
+		SetMaterial(0.1f, 0.6f, 0.2f, 30.f);
+		OsuCone(5.0, .1, 15.0, 100., 100.);
+	glEndList();
+
+	// Draw cylinder
+	TrunkDL= glGenLists(1);
+		glNewList(TrunkDL, GL_COMPILE);
+			// Draw the center pole
+			glBegin(GL_TRIANGLE_STRIP);
+
+			SetMaterial(0.510, 0.270, 0.270, 3.);
+
+			for (int i = 0; i <= 50; i++) {
+
+				float angle = 2.0 * F_PI * i / 50;
+				float x = poleX * cos(angle);
+				float z = poleX * sin(angle);
+
+				glNormal3f(x, 0, z);
+				glVertex3f(x, -8.0, z);
+				glVertex3f(x, 5.0, z);
+			}
+
+		glEnd();
 	glEndList();
 
 	// Draw cylinder
@@ -1371,40 +1294,9 @@ InitLists()
 
 		glEnd();
 
-		// Draw the disc
-		glBegin(GL_TRIANGLE_STRIP);
-
-		SetMaterial(0.576, 0.240, 0.890, 3.);
-
-		for (int i = 0; i <= 50; i++) {
-
-			float angle = 2.0 * F_PI * i / 50;
-			float x = 1. * cos(angle);
-			float z = 1.0 * sin(angle);
-
-			glNormal3f(x, 0, z);
-			glVertex3f(x + 4., 2.5, z);
-			glVertex3f(x + 4., 2.75, z);
-		}
-
-		glEnd();
-
-		// Draw the top of the disc
-		glBegin(GL_TRIANGLE_FAN);
-
-		SetMaterial(0.576, 0.240, 0.890, 3.);
-
-		for (int i = 0; i <= 50; i++) {
-			float angle = 2.0 * F_PI * i / 50;
-			float x = cos(angle);
-			float z = sin(angle);
-
-			glVertex3f(x + 4., 2.75, z);
-		}
-		glEnd();
 
 		// Draw the disc on the ground
-		glBegin(GL_TRIANGLE_STRIP);
+	glBegin(GL_TRIANGLE_STRIP);
 
 		SetMaterial(1.00, 0.0800, 0.985, 3.);
 
@@ -1436,7 +1328,7 @@ InitLists()
 		glEnd();
 
 		// Draw the disc on the ground
-		glBegin(GL_TRIANGLE_STRIP);
+	glBegin(GL_TRIANGLE_STRIP);
 
 		SetMaterial(0.0800, 0.663, 1.00, 3.);
 
@@ -1469,8 +1361,7 @@ InitLists()
 
 	glEndList();
 
-	// Create the grid
-	GridDL = glGenLists(1);
+	DiscDL = glGenLists(1);
 		glNewList(DiscDL, GL_COMPILE);
 		// Draw the disc
 		glBegin(GL_TRIANGLE_STRIP);
@@ -1681,7 +1572,7 @@ void
 Reset()
 {
 	ActiveButton = 0;
-	AxesOn = 1;
+	AxesOn = 0;
 	DebugOn = 0;
 	DepthBufferOn = 1;
 	DepthFightingOn = 0;
